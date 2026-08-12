@@ -25,3 +25,15 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm audit --omit=dev --audit-level=high
+
+  firmware:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install platformio==6.1.18
+      - run: cp examples/connectivity-test/esp32/include/secrets.example.h examples/connectivity-test/esp32/include/secrets.h
+      - run: pio run --project-dir examples/connectivity-test/esp32
