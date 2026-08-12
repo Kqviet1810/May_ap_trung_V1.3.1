@@ -303,9 +303,10 @@ class NetworkBridge {
   bool mqttUsesTls() const { return NETWORK_MQTT_PORT != 1883U; }
 
   void configureMqttTransport() {
-    mqtt_.onMessage([](String &topic, String &payload) {
-      Bridge.enqueueInbound(topic, payload);
-    });
+    mqtt_.onMessage(static_cast<MQTTClientCallbackSimpleFunction>(
+        +[](String &topic, String &payload) {
+          Bridge.enqueueInbound(topic, payload);
+        }));
     if (mqttUsesTls()) {
       secureClient_.setCACert(NETWORK_MQTT_ROOT_CA);
       mqtt_.begin(NETWORK_MQTT_HOST, NETWORK_MQTT_PORT, secureClient_);
@@ -326,7 +327,7 @@ class NetworkBridge {
       offline["reason"] = "connection_lost";
       String will;
       serializeJson(offline, will);
-      mqtt_.setWill(topicPresence_, will, true, 1);
+      mqtt_.setWill(topicPresence_, will.c_str(), true, 1);
       if (!mqtt_.connect(NETWORK_DEVICE_ID, NETWORK_MQTT_USERNAME,
                          NETWORK_MQTT_PASSWORD)) return;
       mqtt_.subscribe(topicCommand_, 1);

@@ -201,12 +201,20 @@ void setup() {
   Wire.setTimeOut(I2C_TIMEOUT_MS);
   hmiSetI2cLockCallbacks(mayapI2cLock, mayapI2cUnlock);
 
+  esp_err_t result = ESP_OK;
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
   esp_task_wdt_config_t wdtConfig{};
   wdtConfig.timeout_ms = CONTROL_WDT_TIMEOUT_MS;
   wdtConfig.idle_core_mask = 0U;
   wdtConfig.trigger_panic = true;
-  esp_err_t result = esp_task_wdt_reconfigure(&wdtConfig);
+  result = esp_task_wdt_reconfigure(&wdtConfig);
   if (result == ESP_ERR_INVALID_STATE) result = esp_task_wdt_init(&wdtConfig);
+#else
+  // ESP-IDF 4.4 nhan timeout theo giay va esp_task_wdt_init() cung cap nhat
+  // cau hinh neu TWDT da duoc Arduino core khoi tao.
+  result = esp_task_wdt_init(
+      static_cast<uint32_t>((CONTROL_WDT_TIMEOUT_MS + 999UL) / 1000UL), true);
+#endif
   if (result != ESP_OK) fatalRestart("WDT INIT", result);
 
   Machine.begin();

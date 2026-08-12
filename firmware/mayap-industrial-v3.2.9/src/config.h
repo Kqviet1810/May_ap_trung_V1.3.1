@@ -1,9 +1,21 @@
 #pragma once
 
 #include <Arduino.h>
+#include <esp_arduino_version.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <math.h>
+
+// Firmware goc dung API RGB cua Arduino-ESP32 3.x. PlatformIO stable hien
+// build bang Arduino-ESP32 2.0.17; adapter nay giu nguyen machine_control.h.
+#if ESP_ARDUINO_VERSION_MAJOR < 3
+#include <esp32-hal-rgb-led.h>
+constexpr uint8_t LED_COLOR_ORDER_GRB = 0U;
+inline void rgbLedWriteOrdered(uint8_t pin, uint8_t, uint8_t red,
+                               uint8_t green, uint8_t blue) {
+  neopixelWrite(pin, red, green, blue);
+}
+#endif
 
 // ============================================================================
 // MAY AP TRUNG OFFLINE INDUSTRIAL v3.2.9 - CAU HINH DUY NHAT CAN SUA
