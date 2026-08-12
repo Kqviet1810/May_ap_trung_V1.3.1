@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Cpu, LoaderCircle, X } from 'lucide-react';
 import type { RuntimeConfig } from '../types';
 import { pairDevice } from '../lib/api';
-import { isProductionConfigured } from '../lib/config';
+import { isRuntimeConfigured } from '../lib/config';
 
 interface PairDeviceDialogProps {
   open: boolean;
@@ -49,7 +49,7 @@ export function PairDeviceDialog({ open, config, onClose, onPaired }: PairDevice
         <span className="eyebrow">THÊM THIẾT BỊ</span>
         <h2 id="pair-title">Liên kết MAYAP của bạn</h2>
         <p>Mã ghép nối dùng một lần phải được cấp từ màn hình hoặc nhãn bảo mật trên thiết bị.</p>
-        {isProductionConfigured(config) ? (
+        {isRuntimeConfigured(config) ? (
           <form onSubmit={submit} className="pair-form">
             <label>
               <span>Mã ghép nối</span>

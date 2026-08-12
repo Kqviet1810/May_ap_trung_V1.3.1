@@ -78,7 +78,10 @@ export function useMayapController(runtimeConfig: RuntimeConfig | null) {
     });
     gatewayRef.current = gateway;
     void gateway.start();
+    const reconnectWhenOnline = () => void gateway.start();
+    window.addEventListener('online', reconnectWhenOnline);
     return () => {
+      window.removeEventListener('online', reconnectWhenOnline);
       gateway.stop();
       gatewayRef.current = null;
     };

@@ -1,0 +1,11 @@
+{
+  "environment": "staging",
+  "apiBaseUrl": "http://localhost:8787",
+  "sessionEndpoint": "/v1/mqtt/session",
+  "pairingEndpoint": "/v1/devices/pair",
+  "loginUrl": "http://localhost:8787/dev-login",
+  "supportUrl": "",
+  "topicRoot": "mayap/v1",
+  "staleAfterMs": 30000
+}
+

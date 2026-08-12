@@ -77,6 +77,8 @@ flowchart LR
 
 Frontend tĩnh không thể tự bảo vệ secret. Backend và broker trong sơ đồ là thành phần bắt buộc trước khi bán sản phẩm thật. Xem hợp đồng tích hợp tại [docs/BACKEND_CONTRACT.md](docs/BACKEND_CONTRACT.md), giao thức MQTT tại [docs/MQTT_PROTOCOL.md](docs/MQTT_PROTOCOL.md), và checklist phát hành tại [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md).
 
+Để test truyền/nhận thật trước khi có hạ tầng production, dùng bộ backend + Mosquitto + firmware ESP32 trong [examples/connectivity-test](examples/connectivity-test/README.md).
+
 ## Phân quyền
 
 | Vai trò | Xem dữ liệu | Sửa cấu hình | Gửi lệnh |

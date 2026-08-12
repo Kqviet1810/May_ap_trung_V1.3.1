@@ -26,7 +26,7 @@ export async function requestMqttSession(config: RuntimeConfig, signal?: AbortSi
   }
 
   const session = (await response.json()) as MqttSession;
-  validateSession(session);
+  validateSession(config, session);
   return session;
 }
 
@@ -72,7 +72,7 @@ export async function saveBatchPlan(
   if (!response.ok) throw new ApiError('Không thể lưu thông tin mẻ trên máy chủ', response.status);
 }
 
-function validateSession(session: MqttSession): void {
+function validateSession(config: RuntimeConfig, session: MqttSession): void {
   if (!session?.user?.id || !Array.isArray(session.devices)) {
     throw new Error('Phản hồi phiên người dùng không hợp lệ');
   }
@@ -80,8 +80,11 @@ function validateSession(session: MqttSession): void {
   if (deviceIds.some((id) => !DEVICE_ID_RE.test(id)) || new Set(deviceIds).size !== deviceIds.length) {
     throw new Error('Danh sách thiết bị được cấp quyền không hợp lệ');
   }
-  if (!/^wss:\/\//i.test(session.mqtt?.url || '')) {
-    throw new Error('Broker bắt buộc sử dụng WSS');
+  const mqttUrl = session.mqtt?.url || '';
+  const secure = /^wss:\/\//i.test(mqttUrl);
+  const localTest = config.environment === 'staging' && /^ws:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(mqttUrl);
+  if (!secure && !localTest) {
+    throw new Error('Broker production bắt buộc dùng WSS; WS chỉ được phép ở localhost staging');
   }
   if (!session.mqtt.clientId || !session.mqtt.username || !session.mqtt.password) {
     throw new Error('Phiên MQTT thiếu thông tin xác thực');

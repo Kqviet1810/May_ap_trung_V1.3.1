@@ -49,7 +49,16 @@ export default function App() {
   const controller = useMayapController(runtimeConfig);
 
   useEffect(() => { void loadRuntimeConfig().then(setRuntimeConfig); }, []);
-  useEffect(() => setSidebarOpen(false), [page]);
+  useEffect(() => {
+    setSidebarOpen(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [page]);
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [sidebarOpen]);
 
   const canControl = Boolean(
     controller.session &&
@@ -122,7 +131,7 @@ export default function App() {
                 <ChevronDown size={16} />
               </label>
             ) : (
-              <button className="button secondary compact" type="button" onClick={() => setPairingOpen(true)}><Plus size={17} /> Thêm thiết bị</button>
+              <button className="button secondary compact" type="button" onClick={() => setPairingOpen(true)}><Plus size={17} /><span>Thêm thiết bị</span></button>
             )}
             <button className="notification-button" type="button" aria-label={criticalCount ? `${criticalCount} cảnh báo nghiêm trọng` : 'Không có cảnh báo nghiêm trọng'} onClick={() => setPage('alerts')}>
               <Bell size={19} />{criticalCount > 0 && <b>{criticalCount}</b>}
@@ -161,10 +170,6 @@ export default function App() {
           </>
         )}
       </main>
-
-      <nav className="mobile-nav" aria-label="Điều hướng di động">
-        {NAV_ITEMS.map((item) => <button key={item.id} type="button" className={page === item.id ? 'active' : ''} onClick={() => setPage(item.id)}>{item.icon}<span>{item.label}</span>{item.id === 'alerts' && criticalCount > 0 && <b>{criticalCount}</b>}</button>)}
-      </nav>
 
       {controller.notice && <div className="toast" role="status"><Wifi size={18} /><span>{controller.notice}</span><button type="button" aria-label="Đóng thông báo" onClick={() => controller.showNotice('')}><X size={17} /></button></div>}
 

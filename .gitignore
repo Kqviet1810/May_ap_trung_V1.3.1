@@ -3,3 +3,5 @@ dist/
 .DS_Store
 *.local
 coverage/
+examples/connectivity-test/.env
+examples/connectivity-test/esp32/include/secrets.h

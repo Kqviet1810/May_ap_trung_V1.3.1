@@ -1,6 +1,6 @@
 import { Activity, Bell, ChevronDown, Cloud, Gauge, LockKeyhole, RotateCw, Save, ShieldCheck, Thermometer, Wrench } from 'lucide-react';
 import type { CommandAction, DeviceRuntimeState, GatewayStatus, MachineConfig, MayapUser, RuntimeConfig } from '../types';
-import { isProductionConfigured } from '../lib/config';
+import { isSecureProductionConfig } from '../lib/config';
 
 interface SettingsPageProps {
   config: RuntimeConfig;
@@ -91,7 +91,7 @@ export function SettingsPage({ config, status, user, device, online, canControl,
       <aside className="settings-side">
         <section className="panel system-card">
           <div className="section-heading"><div><span className="eyebrow">TRẠNG THÁI HỆ THỐNG</span><h2>Kiểm tra production</h2></div><Activity size={20} /></div>
-          <SystemCheck icon={<LockKeyhole />} label="API qua HTTPS" ok={isProductionConfigured(config)} />
+          <SystemCheck icon={<LockKeyhole />} label="API production qua HTTPS" ok={isSecureProductionConfig(config)} />
           <SystemCheck icon={<Cloud />} label="Phiên MQTT ngắn hạn" ok={status.phase === 'connected'} />
           <SystemCheck icon={<ShieldCheck />} label="Tài khoản được xác thực" ok={Boolean(user)} />
           <SystemCheck icon={<Activity />} label="Thiết bị có mặt" ok={online} />

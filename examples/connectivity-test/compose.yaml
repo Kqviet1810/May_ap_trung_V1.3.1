@@ -1,0 +1,47 @@
+services:
+  broker:
+    image: eclipse-mosquitto:2.0.22
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./broker/acl:/mosquitto/config/acl:ro
+      - broker-data:/mosquitto/data
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        rm -f /mosquitto/data/passwords
+        mosquitto_passwd -b -c /mosquitto/data/passwords mayap-web-test "$${WEB_MQTT_PASSWORD}"
+        mosquitto_passwd -b /mosquitto/data/passwords mayap-device-test "$${DEVICE_MQTT_PASSWORD}"
+        chmod 0600 /mosquitto/data/passwords
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u mayap-device-test -P \"$$DEVICE_MQTT_PASSWORD\" -t '$$SYS/broker/uptime' -C 1 -W 3 >/dev/null"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+
+  api:
+    image: node:22-alpine
+    restart: unless-stopped
+    working_dir: /app
+    env_file: .env
+    environment:
+      PORT: "8787"
+      MQTT_WEB_USERNAME: mayap-web-test
+    volumes:
+      - ./api:/app:ro
+    command: ["node", "server.mjs"]
+    ports:
+      - "8787:8787"
+    depends_on:
+      broker:
+        condition: service_healthy
+
+volumes:
+  broker-data:
+

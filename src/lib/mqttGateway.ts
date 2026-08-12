@@ -18,18 +18,22 @@ import {
   parseInboundTopic,
   topicSet
 } from './protocol';
-import { isProductionConfigured } from './config';
+import { isRuntimeConfigured } from './config';
 
 const MAX_MESSAGE_BYTES = 64 * 1024;
+const SESSION_TIMEOUT_MS = 12_000;
 
 export class MayapMqttGateway {
   private client: MqttClient | null = null;
   private session: MqttSession | null = null;
   private refreshTimer = 0;
+  private retryTimer = 0;
   private heartbeatTimer = 0;
   private selectedDeviceId = '';
   private stopped = false;
   private runId = 0;
+  private retryAttempt = 0;
+  private sessionRequest: AbortController | null = null;
 
   constructor(
     private readonly config: RuntimeConfig,
@@ -40,33 +44,45 @@ export class MayapMqttGateway {
     const runId = ++this.runId;
     this.stopped = false;
     window.clearTimeout(this.refreshTimer);
+    window.clearTimeout(this.retryTimer);
     window.clearInterval(this.heartbeatTimer);
+    this.sessionRequest?.abort();
+    const requestController = new AbortController();
+    this.sessionRequest = requestController;
     this.client?.end(true);
     this.client = null;
     this.session = null;
 
-    if (!isProductionConfigured(this.config)) {
+    if (!isRuntimeConfigured(this.config)) {
       this.handlers.onStatus({
         phase: 'unconfigured',
-        message: 'Chưa cấu hình dịch vụ xác thực production'
+        message: 'Chưa cấu hình dịch vụ xác thực'
       });
       return;
     }
 
     this.handlers.onStatus({ phase: 'authorizing', message: 'Đang xác thực phiên điều khiển…' });
+    const timeout = window.setTimeout(() => requestController.abort(), SESSION_TIMEOUT_MS);
     try {
-      const session = await requestMqttSession(this.config);
+      const session = await requestMqttSession(this.config, requestController.signal);
       if (this.stopped || runId !== this.runId) return;
       this.session = session;
       this.handlers.onSession(session);
-      void this.connect(session, runId);
+      await this.connect(session, runId);
       this.scheduleRefresh(session.mqtt.expiresAt);
     } catch (error) {
+      if (this.stopped || runId !== this.runId) return;
       const unauthorized = error instanceof ApiError && error.status === 401;
       this.handlers.onStatus({
         phase: unauthorized ? 'unauthorized' : 'error',
-        message: error instanceof Error ? error.message : 'Không thể mở phiên điều khiển'
+        message: error instanceof DOMException && error.name === 'AbortError'
+          ? 'Dịch vụ xác thực không phản hồi đúng hạn'
+          : error instanceof Error ? error.message : 'Không thể mở phiên điều khiển'
       });
+      if (!unauthorized) this.scheduleRetry();
+    } finally {
+      window.clearTimeout(timeout);
+      if (this.sessionRequest === requestController) this.sessionRequest = null;
     }
   }
 
@@ -101,7 +117,10 @@ export class MayapMqttGateway {
     this.stopped = true;
     this.runId += 1;
     window.clearTimeout(this.refreshTimer);
+    window.clearTimeout(this.retryTimer);
     window.clearInterval(this.heartbeatTimer);
+    this.sessionRequest?.abort();
+    this.sessionRequest = null;
     if (this.selectedDeviceId) this.publishHeartbeat(this.selectedDeviceId, false, false);
     this.client?.end(true);
     this.client = null;
@@ -127,6 +146,7 @@ export class MayapMqttGateway {
 
     this.client.on('connect', () => {
       if (runId !== this.runId) return;
+      this.retryAttempt = 0;
       this.handlers.onStatus({ phase: 'connected', message: 'Kênh điều khiển đã sẵn sàng' });
       this.subscribeAuthorizedDevices();
       if (this.selectedDeviceId) this.publishHeartbeat(this.selectedDeviceId, true, true);
@@ -228,6 +248,15 @@ export class MayapMqttGateway {
       this.client?.end(true);
       this.client = null;
       void this.start();
+    }, delay);
+  }
+
+  private scheduleRetry(): void {
+    window.clearTimeout(this.retryTimer);
+    const delay = Math.min(30_000, 2_000 * (2 ** Math.min(this.retryAttempt, 4)));
+    this.retryAttempt += 1;
+    this.retryTimer = window.setTimeout(() => {
+      if (!this.stopped && navigator.onLine) void this.start();
     }, delay);
   }
 }

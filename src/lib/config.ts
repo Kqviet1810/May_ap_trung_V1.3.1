@@ -37,8 +37,14 @@ export async function loadRuntimeConfig(): Promise<RuntimeConfig> {
   }
 }
 
-export function isProductionConfigured(config: RuntimeConfig): boolean {
-  return config.environment !== 'unconfigured' && /^https:\/\//i.test(config.apiBaseUrl);
+export function isRuntimeConfigured(config: RuntimeConfig): boolean {
+  if (config.environment === 'unconfigured') return false;
+  if (/^https:\/\//i.test(config.apiBaseUrl)) return true;
+  return config.environment === 'staging' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(config.apiBaseUrl);
+}
+
+export function isSecureProductionConfig(config: RuntimeConfig): boolean {
+  return config.environment === 'production' && /^https:\/\//i.test(config.apiBaseUrl);
 }
 
 export function apiUrl(config: RuntimeConfig, path: string): string {
