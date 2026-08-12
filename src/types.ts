@@ -78,7 +78,6 @@ export interface MachineConfig {
   totalIncubationDays: number;
   circulationFanEnabled: boolean;
   turningEnabled: boolean;
-  autoResumeAfterPower: boolean;
   allowHeatWithoutBatch: boolean;
   alarmEnabled: boolean;
   controlMode: number;

@@ -40,7 +40,6 @@ struct MachineConfig {
   uint32_t totalIncubationDays = 21;
   bool circulationFanEnabled = true;
   bool turningEnabled = true;
-  bool autoResumeAfterPower = true;
   bool allowHeatWithoutBatch = false;
   bool alarmEnabled = true;
   int controlMode = 1;
@@ -256,7 +255,6 @@ void writeConfig(JsonObject target, const MachineConfig& value) {
   target["totalIncubationDays"] = value.totalIncubationDays;
   target["circulationFanEnabled"] = value.circulationFanEnabled;
   target["turningEnabled"] = value.turningEnabled;
-  target["autoResumeAfterPower"] = value.autoResumeAfterPower;
   target["allowHeatWithoutBatch"] = value.allowHeatWithoutBatch;
   target["alarmEnabled"] = value.alarmEnabled;
   target["controlMode"] = value.controlMode;
@@ -350,7 +348,7 @@ void applyConfig(JsonObjectConst source, MachineConfig& target) {
   APPLY_VALUE(ventOnTemp); APPLY_VALUE(ventOffTemp); APPLY_VALUE(tempOffset); APPLY_VALUE(humidityOffset);
   APPLY_VALUE(pidCycleSec); APPLY_VALUE(humidityAlarmDelaySec); APPLY_VALUE(turnIntervalMin); APPLY_VALUE(turnMaxRunSec);
   APPLY_VALUE(powerRestoreDelaySec); APPLY_VALUE(sensorTimeoutSec); APPLY_VALUE(maxHeaterPower); APPLY_VALUE(totalIncubationDays);
-  APPLY_VALUE(circulationFanEnabled); APPLY_VALUE(turningEnabled); APPLY_VALUE(autoResumeAfterPower);
+  APPLY_VALUE(circulationFanEnabled); APPLY_VALUE(turningEnabled);
   APPLY_VALUE(allowHeatWithoutBatch); APPLY_VALUE(alarmEnabled); APPLY_VALUE(controlMode); APPLY_VALUE(nextDirection);
 #undef APPLY_VALUE
 }

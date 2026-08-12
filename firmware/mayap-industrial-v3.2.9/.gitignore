@@ -1,0 +1,4 @@
+.pio/
+.vscode/
+include/network_secrets.h
+
