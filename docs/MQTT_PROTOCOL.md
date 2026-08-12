@@ -12,10 +12,27 @@ Root mặc định: `mayap/v1`. Device ID có định dạng `MAP-` + 12 ký t�
 | ESP32 → web | `{root}/{deviceId}/ack` | 1 | Không | Kết quả lệnh/cấu hình |
 | ESP32 → web | `{root}/{deviceId}/log` | 1 | Không | Sự kiện vận hành |
 | web → ESP32 | `{root}/{deviceId}/config/set` | 1 | Không | Cấu hình mong muốn |
+| web → ESP32 | `{root}/{deviceId}/wifi/set` | 1 | Không | Đổi Wi-Fi, chỉ owner và thiết bị đang online |
 | web → ESP32 | `{root}/{deviceId}/command` | 1 | Không | Lệnh ngắn hạn |
 | web → ESP32 | `{root}/{deviceId}/session` | 0 | Không | Heartbeat của giao diện |
 
-Không retain `command` hoặc `config/set`; tránh ESP32 nhận lại thao tác cũ sau reboot.
+Không retain `command`, `config/set` hoặc `wifi/set`; tránh ESP32 nhận lại thao tác cũ sau reboot.
+
+## Đổi Wi-Fi
+
+```json
+{
+  "v": 1,
+  "sequence": 1760000002,
+  "requestId": "wifi-uuid",
+  "bootId": 123456,
+  "expiresAt": 1786536030,
+  "ssid": "MAYAP_WORKSHOP",
+  "password": "mat-khau-wifi"
+}
+```
+
+Backend/broker chỉ cấp quyền publish `wifi/set` cho chủ sở hữu. Payload phải dùng QoS 1, không retain, không ghi log và chỉ đi qua WSS/MQTTS. ESP32 thử mạng mới trước khi lưu NVS; nếu thất bại phải quay lại mạng cũ.
 
 ## Lệnh
 
@@ -67,11 +84,11 @@ Ví dụ logic, không phải cấu hình copy-paste:
 ```text
 web user U + assigned device D:
   allow subscribe mayap/v1/D/{presence,snapshot,config/reported,ack,log}
-  allow publish   mayap/v1/D/{command,config/set,session}
+  allow publish   mayap/v1/D/{command,config/set,wifi/set,session}
 
 device D:
   allow publish   mayap/v1/D/{presence,snapshot,config/reported,ack,log}
-  allow subscribe mayap/v1/D/{command,config/set,session}
+  allow subscribe mayap/v1/D/{command,config/set,wifi/set,session}
   deny all other topics
 ```
 

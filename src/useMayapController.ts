@@ -7,7 +7,8 @@ import type {
   GatewayStatus,
   MachineConfig,
   MqttSession,
-  RuntimeConfig
+  RuntimeConfig,
+  WifiCredentials
 } from './types';
 import { MayapMqttGateway } from './lib/mqttGateway';
 
@@ -126,6 +127,17 @@ export function useMayapController(runtimeConfig: RuntimeConfig | null) {
     setNotice('Đã gửi cấu hình. Đang chờ thiết bị đọc lại…');
   }, [devices, isDeviceOnline, selectedId]);
 
+  const sendWifiCredentials = useCallback(async (credentials: WifiCredentials) => {
+    const device = selectedId ? devices[selectedId] : null;
+    const bootId = Number(device?.snapshot?.bootId || device?.config?.bootId || 0);
+    if (!device || !isDeviceOnline) throw new Error('Thiết bị phải đang trực tuyến để đổi Wi-Fi');
+    if (session?.user.role !== 'owner') throw new Error('Chỉ chủ sở hữu được thay đổi Wi-Fi');
+    const sequence = Math.max(device.commandSequence + 1, Math.floor(Date.now() / 1000));
+    await gatewayRef.current?.sendWifiCredentials(device.summary.id, credentials, bootId, sequence);
+    updateDevice(setDevices, device.summary.id, (current) => ({ ...current, commandSequence: sequence }));
+    setNotice('ESP32 đã nhận yêu cầu. Thiết bị sẽ ngắt kết nối ngắn để chuyển Wi-Fi…');
+  }, [devices, isDeviceOnline, selectedId, session?.user.role]);
+
   return useMemo(() => ({
     session,
     status,
@@ -137,9 +149,10 @@ export function useMayapController(runtimeConfig: RuntimeConfig | null) {
     selectDevice,
     sendCommand,
     sendConfig,
+    sendWifiCredentials,
     reconnect: () => void gatewayRef.current?.start(),
     showNotice: setNotice
-  }), [session, status, devices, selectedId, selectedDevice, isDeviceOnline, notice, selectDevice, sendCommand, sendConfig]);
+  }), [session, status, devices, selectedId, selectedDevice, isDeviceOnline, notice, selectDevice, sendCommand, sendConfig, sendWifiCredentials]);
 }
 
 function emptyDevice(summary: MqttSession['devices'][number]): DeviceRuntimeState {

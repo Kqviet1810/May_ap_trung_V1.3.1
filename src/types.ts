@@ -116,6 +116,11 @@ export interface PresenceMessage {
   reason?: string;
 }
 
+export interface WifiCredentials {
+  ssid: string;
+  password: string;
+}
+
 export interface ConfigReport {
   bootId: number;
   revision: number;

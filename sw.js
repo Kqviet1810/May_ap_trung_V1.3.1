@@ -78,7 +78,7 @@ define(['./workbox-290dd570'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "index.html",
-    "revision": "5cd008b7ac057e232abffddb6bdcd84e"
+    "revision": "47dc5bfe2e5f55b36dabbafbc86016f4"
   }, {
     "url": "icon.svg",
     "revision": "4bd59f5d3248f34b0335e7256b6f7185"
@@ -95,10 +95,10 @@ define(['./workbox-290dd570'], (function (workbox) { 'use strict';
     "url": "assets/mqtt.esm-Cb5udC1o.js",
     "revision": null
   }, {
-    "url": "assets/index-Dr3Igclh.js",
+    "url": "assets/index-CiAytiUI.css",
     "revision": null
   }, {
-    "url": "assets/index-94zaUqk_.css",
+    "url": "assets/index-BjBXitNZ.js",
     "revision": null
   }, {
     "url": "icon.svg",

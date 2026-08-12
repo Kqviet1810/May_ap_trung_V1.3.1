@@ -6,6 +6,7 @@ topic read mayap/v1/MAP-A1B2C3D4E5F6/ack
 topic read mayap/v1/MAP-A1B2C3D4E5F6/log
 topic write mayap/v1/MAP-A1B2C3D4E5F6/command
 topic write mayap/v1/MAP-A1B2C3D4E5F6/config/set
+topic write mayap/v1/MAP-A1B2C3D4E5F6/wifi/set
 topic write mayap/v1/MAP-A1B2C3D4E5F6/session
 
 user mayap-device-test
@@ -17,4 +18,5 @@ topic write mayap/v1/MAP-A1B2C3D4E5F6/ack
 topic write mayap/v1/MAP-A1B2C3D4E5F6/log
 topic read mayap/v1/MAP-A1B2C3D4E5F6/command
 topic read mayap/v1/MAP-A1B2C3D4E5F6/config/set
+topic read mayap/v1/MAP-A1B2C3D4E5F6/wifi/set
 topic read mayap/v1/MAP-A1B2C3D4E5F6/session

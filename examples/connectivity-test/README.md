@@ -17,7 +17,7 @@ Telemetry trong dashboard đến từ ESP32 qua broker; lệnh/cấu hình từ 
 - `broker/acl`: tách quyền tài khoản web và tài khoản ESP32 theo từng topic.
 - `api/server.mjs`: login cookie, `/v1/mqtt/session`, pairing và lưu kế hoạch mẻ trong RAM.
 - `frontend-config.local.json`: cấu hình frontend chạy local.
-- `esp32/`: firmware PlatformIO nhận lệnh, gửi presence/snapshot/config/ack/log.
+- `esp32/`: firmware PlatformIO nhận lệnh, đổi Wi-Fi có rollback, gửi presence/snapshot/config/ack/log.
 
 ## 1. Khởi động broker và API
 
@@ -95,6 +95,7 @@ Khi Serial hiện `MQTT đã kết nối và subscribe đầy đủ`, dashboard 
 4. Tạo kế hoạch mẻ và chọn **Bắt đầu mẻ**.
 5. ESP32 kiểm tra `bootId`, sequence và thời gian hết hạn; sau đó trả ack và event code `20`.
 6. Trạng thái gia nhiệt/mẻ trên dashboard phải thay đổi theo snapshot kế tiếp.
+7. Trong **Cài đặt → Cấu hình Wi-Fi ESP32**, nhập một mạng thử khác. ESP32 xác nhận yêu cầu, thử mạng mới và tự quay lại mạng cũ nếu kết nối thất bại.
 
 Theo dõi thô toàn bộ dữ liệu ESP32 từ broker:
 
@@ -110,8 +111,8 @@ Code mẫu là nền móng tích hợp, nhưng các điểm sau phải được 
 - Không trả password MQTT tĩnh. Backend production phải cấp token 5–15 phút và broker kiểm tra ACL động theo user/device.
 - Dùng HTTPS cho API, WSS cho trình duyệt và MQTTS/TLS cho ESP32; cài CA thật, không dùng `setInsecure()`.
 - Lưu session, pairing, batch plan và audit trong database; thêm CSRF protection và rate limit dùng Redis/gateway.
+- Bật Secure Boot + Flash Encryption/NVS Encryption trước khi lưu thông tin Wi-Fi trên thiết bị thương mại; firmware mẫu đã không lưu mật khẩu ở browser/log và chỉ ghi mạng mới sau khi kết nối thành công.
 - Firmware phải lưu sequence/config vào NVS an toàn, thay telemetry test bằng driver cảm biến thật và bổ sung watchdog/fail-safe phần cứng.
 - Broker production không mở cổng plaintext ra Internet; MQTT `1883` trong mẫu chỉ dành cho LAN kiểm thử.
 
 Tham chiếu giao thức đầy đủ: [`../../docs/MQTT_PROTOCOL.md`](../../docs/MQTT_PROTOCOL.md).
-

@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <MQTT.h>
+#include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <cmath>
@@ -12,6 +13,8 @@ constexpr size_t MAX_INBOUND_BYTES = 8192;
 constexpr size_t INBOUND_QUEUE_SIZE = 4;
 constexpr uint32_t SNAPSHOT_INTERVAL_MS = 2000;
 constexpr uint32_t RECONNECT_INTERVAL_MS = 5000;
+constexpr uint32_t WIFI_SWITCH_DELAY_MS = 700;
+constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000;
 
 struct MachineConfig {
   float targetTemp = 37.5F;
@@ -49,6 +52,7 @@ WiFiClient plainNetwork;
 WiFiClientSecure secureNetwork;
 Client* network = nullptr;
 MQTTClient mqtt(4096);
+Preferences preferences;
 
 String topicPresence;
 String topicSnapshot;
@@ -57,7 +61,27 @@ String topicAck;
 String topicLog;
 String topicCommand;
 String topicConfigSet;
+String topicWifiSet;
 String topicSession;
+
+String activeWifiSsid;
+String activeWifiPassword;
+uint32_t lastWifiConnectAttemptAt = 0;
+
+struct PendingWifiChange {
+  bool active = false;
+  uint32_t applyAt = 0;
+  uint64_t sequence = 0;
+  String requestId;
+  String ssid;
+  String password;
+};
+PendingWifiChange pendingWifi;
+uint64_t lastWifiSequence = 0;
+bool wifiResultPending = false;
+String wifiResultRequestId;
+String wifiResult;
+String wifiResultMessage;
 
 uint32_t bootId = 0;
 uint32_t configRevision = 1;
@@ -85,6 +109,7 @@ void publishLog(int code);
 void publishAck(const char* requestId, const char* result, const char* message);
 void queueMqttMessage(String& topic, String& payload);
 void processOneMessage();
+void applyPendingWifi();
 
 String baseTopic() {
   return String(TOPIC_ROOT) + "/" + DEVICE_ID;
@@ -115,24 +140,35 @@ void buildTopics() {
   topicLog = base + "/log";
   topicCommand = base + "/command";
   topicConfigSet = base + "/config/set";
+  topicWifiSet = base + "/wifi/set";
   topicSession = base + "/session";
 }
 
-void connectWifi() {
-  if (WiFi.status() == WL_CONNECTED) return;
-  Serial.printf("Kết nối Wi-Fi %s", WIFI_SSID);
+bool connectToWifi(const String& ssid, const String& password, uint32_t timeoutMs) {
+  if (ssid.isEmpty()) return false;
+  Serial.printf("Kết nối Wi-Fi %s", ssid.c_str());
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(ssid.c_str(), password.c_str());
   const uint32_t startedAt = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < 20000) {
+  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < timeoutMs) {
     delay(300);
     Serial.print('.');
   }
   Serial.println();
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("Wi-Fi OK, IP: %s\n", WiFi.localIP().toString().c_str());
+    return true;
   }
+  Serial.println("Wi-Fi chưa kết nối.");
+  return false;
+}
+
+void connectWifi() {
+  if (WiFi.status() == WL_CONNECTED || activeWifiSsid.isEmpty()) return;
+  if (millis() - lastWifiConnectAttemptAt < RECONNECT_INTERVAL_MS) return;
+  lastWifiConnectAttemptAt = millis();
+  connectToWifi(activeWifiSsid, activeWifiPassword, WIFI_CONNECT_TIMEOUT_MS);
 }
 
 void configureNetwork() {
@@ -170,11 +206,19 @@ void connectMqtt() {
 
   mqtt.subscribe(topicCommand, 1);
   mqtt.subscribe(topicConfigSet, 1);
+  mqtt.subscribe(topicWifiSet, 1);
   mqtt.subscribe(topicSession, 0);
   publishPresence(true, "connected");
   publishConfig();
   publishSnapshot();
   publishLog(1);
+  if (wifiResultPending) {
+    publishAck(wifiResultRequestId.c_str(), wifiResult.c_str(), wifiResultMessage.c_str());
+    wifiResultPending = false;
+    wifiResultRequestId = "";
+    wifiResult = "";
+    wifiResultMessage = "";
+  }
   Serial.println("MQTT đã kết nối và subscribe đầy đủ.");
 }
 
@@ -331,6 +375,77 @@ void handleConfig(JsonDocument& document) {
   publishLog(50);
 }
 
+void handleWifi(JsonDocument& document) {
+  const char* requestId = document["requestId"] | "";
+  const char* ssid = document["ssid"] | "";
+  const char* password = document["password"] | "";
+  const uint32_t requestedBootId = document["bootId"] | 0;
+  const uint64_t sequence = document["sequence"] | 0;
+  const uint32_t expiresAt = document["expiresAt"] | 0;
+  const size_t ssidLength = strlen(ssid);
+  const size_t passwordLength = strlen(password);
+
+  if (document["v"].as<int>() != 1 || strlen(requestId) < 4 || ssidLength == 0 || ssidLength > 32 || passwordLength < 8 || passwordLength > 63) {
+    return publishAck(requestId, "invalid", "SSID hoặc mật khẩu Wi-Fi không hợp lệ");
+  }
+  if (requestedBootId != bootId) return publishAck(requestId, "stale", "bootId thuộc lần khởi động khác");
+  if (sequence <= lastWifiSequence) return publishAck(requestId, "duplicate", "Yêu cầu Wi-Fi đã được xử lý");
+  if (!epochIsValid()) return publishAck(requestId, "rejected", "ESP32 chưa đồng bộ thời gian");
+  if (expiresAt < epochNow() || expiresAt > epochNow() + 60) return publishAck(requestId, "expired", "Yêu cầu Wi-Fi đã hết hạn");
+  if (pendingWifi.active) return publishAck(requestId, "busy", "ESP32 đang thử một mạng Wi-Fi khác");
+
+  lastWifiSequence = sequence;
+  pendingWifi.active = true;
+  pendingWifi.applyAt = millis() + WIFI_SWITCH_DELAY_MS;
+  pendingWifi.sequence = sequence;
+  pendingWifi.requestId = requestId;
+  pendingWifi.ssid = ssid;
+  pendingWifi.password = password;
+  publishAck(requestId, "accepted", "Đã nhận cấu hình; thiết bị sắp chuyển Wi-Fi");
+}
+
+void applyPendingWifi() {
+  if (!pendingWifi.active || static_cast<int32_t>(millis() - pendingWifi.applyAt) < 0) return;
+
+  const String previousSsid = activeWifiSsid;
+  const String previousPassword = activeWifiPassword;
+  const String requestedSsid = pendingWifi.ssid;
+  const String requestedPassword = pendingWifi.password;
+  const String requestId = pendingWifi.requestId;
+
+  pendingWifi.active = false;
+  pendingWifi.requestId = "";
+  pendingWifi.ssid = "";
+  pendingWifi.password = "";
+
+  mqtt.disconnect();
+  WiFi.disconnect(true, false);
+  delay(250);
+
+  if (connectToWifi(requestedSsid, requestedPassword, WIFI_CONNECT_TIMEOUT_MS)) {
+    activeWifiSsid = requestedSsid;
+    activeWifiPassword = requestedPassword;
+    preferences.putString("ssid", activeWifiSsid);
+    preferences.putString("password", activeWifiPassword);
+    wifiResult = "applied";
+    wifiResultMessage = "Đã kết nối và lưu mạng Wi-Fi mới";
+  } else {
+    WiFi.disconnect(true, false);
+    delay(250);
+    activeWifiSsid = previousSsid;
+    activeWifiPassword = previousPassword;
+    connectToWifi(activeWifiSsid, activeWifiPassword, WIFI_CONNECT_TIMEOUT_MS);
+    wifiResult = "rejected";
+    wifiResultMessage = "Không vào được mạng mới; đã quay lại Wi-Fi cũ";
+  }
+
+  // Không ghi mật khẩu vào Serial/MQTT. Xóa các bản sao tạm ngay sau khi thử kết nối.
+  wifiResultRequestId = requestId;
+  wifiResultPending = true;
+  lastConnectAttemptAt = 0;
+  lastWifiConnectAttemptAt = millis();
+}
+
 void handleCommand(JsonDocument& document) {
   const char* requestId = document["requestId"] | "";
   const char* action = document["action"] | "";
@@ -406,6 +521,7 @@ void processOneMessage() {
   }
   if (topic == topicCommand) handleCommand(document);
   else if (topic == topicConfigSet) handleConfig(document);
+  else if (topic == topicWifiSet) handleWifi(document);
   else if (topic == topicSession && document["sync"].as<bool>()) {
     publishPresence(true, "sync");
     publishConfig();
@@ -419,8 +535,11 @@ void setup() {
   delay(400);
   bootId = esp_random();
   if (bootId == 0) bootId = 1;
+  preferences.begin("mayap-net", false);
+  activeWifiSsid = preferences.getString("ssid", WIFI_SSID);
+  activeWifiPassword = preferences.getString("password", WIFI_PASSWORD);
   buildTopics();
-  connectWifi();
+  connectToWifi(activeWifiSsid, activeWifiPassword, WIFI_CONNECT_TIMEOUT_MS);
   configTime(0, 0, "pool.ntp.org", "time.google.com");
   configureNetwork();
   connectMqtt();
@@ -431,6 +550,7 @@ void loop() {
   connectMqtt();
   mqtt.loop();
   processOneMessage();
+  applyPendingWifi();
 
   if (mqtt.connected() && millis() - lastSnapshotAt >= SNAPSHOT_INTERVAL_MS) {
     lastSnapshotAt = millis();

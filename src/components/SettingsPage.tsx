@@ -1,5 +1,6 @@
-import { Activity, Bell, ChevronDown, Cloud, Gauge, LockKeyhole, RotateCw, Save, ShieldCheck, Thermometer, Wrench } from 'lucide-react';
-import type { CommandAction, DeviceRuntimeState, GatewayStatus, MachineConfig, MayapUser, RuntimeConfig } from '../types';
+import { Activity, Bell, ChevronDown, Cloud, Eye, EyeOff, Gauge, LockKeyhole, RotateCw, Router, Save, ShieldCheck, Thermometer, Wifi, Wrench } from 'lucide-react';
+import { useState } from 'react';
+import type { CommandAction, DeviceRuntimeState, GatewayStatus, MachineConfig, MayapUser, RuntimeConfig, WifiCredentials } from '../types';
 import { isSecureProductionConfig } from '../lib/config';
 
 interface SettingsPageProps {
@@ -9,13 +10,17 @@ interface SettingsPageProps {
   device: DeviceRuntimeState | null;
   online: boolean;
   canControl: boolean;
+  canManageNetwork: boolean;
   onSendConfig: (config: MachineConfig) => Promise<void>;
+  onSendWifi: (credentials: WifiCredentials) => Promise<void>;
   onRequestCommand: (action: CommandAction, title: string, message: string) => void;
   onNotice: (message: string) => void;
 }
 
-export function SettingsPage({ config, status, user, device, online, canControl, onSendConfig, onRequestCommand, onNotice }: SettingsPageProps) {
+export function SettingsPage({ config, status, user, device, online, canControl, canManageNetwork, onSendConfig, onSendWifi, onRequestCommand, onNotice }: SettingsPageProps) {
   const machineConfig = device?.config?.config;
+  const [wifiBusy, setWifiBusy] = useState(false);
+  const [showWifiPassword, setShowWifiPassword] = useState(false);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!machineConfig) return;
@@ -49,9 +54,58 @@ export function SettingsPage({ config, status, user, device, online, canControl,
     }
   };
 
+  const submitWifi = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const ssid = String(data.get('wifiSsid') || '').trim();
+    const password = String(data.get('wifiPassword') || '');
+    const confirmation = String(data.get('wifiPasswordConfirm') || '');
+    if (!ssid || ssid.length > 32) return onNotice('Tên Wi-Fi phải có từ 1 đến 32 ký tự');
+    if (password.length < 8 || password.length > 63) return onNotice('Mật khẩu Wi-Fi phải có từ 8 đến 63 ký tự');
+    if (password !== confirmation) return onNotice('Hai lần nhập mật khẩu Wi-Fi chưa khớp');
+    setWifiBusy(true);
+    try {
+      await onSendWifi({ ssid, password });
+      form.reset();
+      setShowWifiPassword(false);
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : 'Không thể gửi cấu hình Wi-Fi');
+    } finally {
+      setWifiBusy(false);
+    }
+  };
+
   return (
     <div className="settings-layout">
-      <form key={`${device?.summary.id || 'none'}-${device?.config?.revision || 0}`} className="settings-main" onSubmit={submit}>
+      <div className="settings-main">
+        <section className="panel wifi-card" id="wifi-settings">
+          <div className="section-heading wifi-heading">
+            <div><span className="eyebrow">KẾT NỐI THIẾT BỊ</span><h2>Cấu hình Wi-Fi ESP32</h2></div>
+            <span className={`wifi-status ${online ? 'online' : ''}`}><Wifi size={16} />{online ? device?.presence?.ssid || 'Đang trực tuyến' : 'Thiết bị ngoại tuyến'}</span>
+          </div>
+          <p className="wifi-description">Đổi mạng cho thiết bị đang trực tuyến. Mật khẩu chỉ được gửi một lần qua kênh bảo mật và không lưu trên trình duyệt.</p>
+          <form className="wifi-form" onSubmit={submitWifi} autoComplete="off">
+            <label className="wide">
+              <span>Tên Wi-Fi (SSID)</span>
+              <div className="wifi-input"><Router size={18} /><input name="wifiSsid" placeholder={device?.presence?.ssid || 'Ví dụ: MAYAP_WORKSHOP'} maxLength={32} autoCapitalize="none" spellCheck={false} disabled={!canManageNetwork || wifiBusy} required /></div>
+            </label>
+            <label>
+              <span>Mật khẩu Wi-Fi</span>
+              <div className="wifi-input"><LockKeyhole size={18} /><input name="wifiPassword" type={showWifiPassword ? 'text' : 'password'} minLength={8} maxLength={63} autoComplete="new-password" disabled={!canManageNetwork || wifiBusy} required /><button type="button" aria-label={showWifiPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowWifiPassword((value) => !value)} disabled={!canManageNetwork}>{showWifiPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
+            </label>
+            <label>
+              <span>Nhập lại mật khẩu</span>
+              <div className="wifi-input"><ShieldCheck size={18} /><input name="wifiPasswordConfirm" type={showWifiPassword ? 'text' : 'password'} minLength={8} maxLength={63} autoComplete="new-password" disabled={!canManageNetwork || wifiBusy} required /></div>
+            </label>
+            <div className="wifi-action wide">
+              <small>{canManageNetwork ? 'ESP32 sẽ mất kết nối khoảng 10–30 giây rồi tự kết nối lại.' : user?.role === 'owner' ? 'Cần chọn một thiết bị đang trực tuyến.' : 'Chỉ chủ sở hữu được phép thay đổi Wi-Fi.'}</small>
+              <button className="button primary" type="submit" disabled={!canManageNetwork || wifiBusy}><Wifi size={17} />{wifiBusy ? 'Đang gửi…' : 'Đổi Wi-Fi cho thiết bị'}</button>
+            </div>
+          </form>
+        </section>
+
+        <form key={`${device?.summary.id || 'none'}-${device?.config?.revision || 0}`} className="machine-settings-form" onSubmit={submit}>
         <SettingSection icon={<Thermometer />} title="Nhiệt độ và bảo vệ" summary={machineConfig ? `${fmt(machineConfig.targetTemp)}°C · ngắt ${fmt(machineConfig.emergencyTemp)}°C` : 'Chờ cấu hình từ ESP32'} open>
           <div className="settings-grid">
             <Field name="targetTemp" label="Nhiệt độ đặt" unit="°C" value={machineConfig?.targetTemp} min={30} max={40} step={0.1} disabled={!canControl} />
@@ -86,7 +140,8 @@ export function SettingsPage({ config, status, user, device, online, canControl,
         </SettingSection>
 
         <button className="button primary settings-save" type="submit" disabled={!canControl || !online || !machineConfig}><Save size={17} /> Lưu cấu hình và đọc lại</button>
-      </form>
+        </form>
+      </div>
 
       <aside className="settings-side">
         <section className="panel system-card">

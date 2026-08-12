@@ -5,12 +5,14 @@ import type {
   GatewayHandlers,
   MachineConfig,
   MqttSession,
-  RuntimeConfig
+  RuntimeConfig,
+  WifiCredentials
 } from '../types';
 import { ApiError, requestMqttSession } from './api';
 import {
   createCommandPayload,
   createRequestId,
+  createWifiPayload,
   eventToLog,
   isConfigReport,
   isPresence,
@@ -111,6 +113,13 @@ export class MayapMqttGateway {
       config
     }, false);
     return requestId;
+  }
+
+  async sendWifiCredentials(deviceId: string, credentials: WifiCredentials, bootId: number, sequence: number): Promise<string> {
+    this.assertAuthorizedDevice(deviceId);
+    const payload = createWifiPayload(credentials, bootId, sequence);
+    await this.publish(topicSet(this.config.topicRoot, deviceId).wifiSet, payload, false);
+    return payload.requestId;
   }
 
   stop(): void {

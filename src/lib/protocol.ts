@@ -4,7 +4,8 @@ import type {
   DeviceLog,
   MachineConfig,
   PresenceMessage,
-  SnapshotMessage
+  SnapshotMessage,
+  WifiCredentials
 } from '../types';
 
 export const DEVICE_ID_RE = /^MAP-[A-F0-9]{12}$/;
@@ -28,6 +29,7 @@ export function topicSet(root: string, deviceId: string) {
     ack: `${base}/ack`,
     log: `${base}/log`,
     configSet: `${base}/config/set`,
+    wifiSet: `${base}/wifi/set`,
     command: `${base}/command`,
     session: `${base}/session`
   };
@@ -39,9 +41,33 @@ export function parseInboundTopic(root: string, topic: string) {
   return match ? { deviceId: match[1]!, channel: match[2]! } : null;
 }
 
-export function createRequestId(prefix: 'cmd' | 'cfg'): string {
+export function createRequestId(prefix: 'cmd' | 'cfg' | 'wifi'): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return `${prefix}-${random}`.slice(0, 63);
+}
+
+export function createWifiPayload(
+  credentials: WifiCredentials,
+  bootId: number,
+  sequence: number,
+  now = Date.now()
+) {
+  const ssid = credentials.ssid.trim();
+  if (!ssid || ssid.length > 32) throw new Error('Tên Wi-Fi phải có từ 1 đến 32 ký tự');
+  if (credentials.password.length < 8 || credentials.password.length > 63) {
+    throw new Error('Mật khẩu Wi-Fi phải có từ 8 đến 63 ký tự');
+  }
+  if (!Number.isInteger(bootId) || bootId <= 0) throw new Error('Chưa nhận bootId hợp lệ từ thiết bị');
+  if (!Number.isInteger(sequence) || sequence <= 0) throw new Error('Sequence không hợp lệ');
+  return {
+    v: 1,
+    sequence,
+    requestId: createRequestId('wifi'),
+    bootId,
+    expiresAt: Math.floor(now / 1000) + 30,
+    ssid,
+    password: credentials.password
+  };
 }
 
 export function createCommandPayload(

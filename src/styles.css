@@ -247,7 +247,22 @@ input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(22,120,101,
 .empty-list strong { margin-top: 11px; color: var(--ink); font-size: 12px; }
 .empty-list span { margin-top: 4px; font-size: 10px; }
 
-.settings-main { display: grid; gap: 10px; }
+.settings-main, .machine-settings-form { display: grid; gap: 10px; }
+.wifi-card { padding: 20px; scroll-margin-top: 88px; }
+.wifi-heading { align-items: center; }
+.wifi-status { min-height: 32px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; color: var(--muted); background: #edf1f0; font-size: 9px; font-weight: 800; }
+.wifi-status.online { color: #14704e; background: #e0f5eb; }
+.wifi-description { max-width: 650px; margin: 12px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.wifi-form { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wifi-form label { display: grid; gap: 7px; }
+.wifi-form label > span { color: var(--ink); font-size: 10px; font-weight: 750; }
+.wifi-form .wide { grid-column: 1/-1; }
+.wifi-input { position: relative; }
+.wifi-input > svg { position: absolute; left: 13px; top: 50%; z-index: 1; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.wifi-input input { width: 100%; padding-left: 42px; padding-right: 42px; }
+.wifi-input button { position: absolute; right: 5px; top: 50%; width: 36px; height: 36px; display: grid; place-items: center; transform: translateY(-50%); border: 0; border-radius: 9px; color: var(--muted); background: transparent; }
+.wifi-action { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.wifi-action small { max-width: 440px; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .setting-section { overflow: hidden; box-shadow: none; }
 .setting-section summary { min-height: 76px; padding: 14px 16px; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 12px; list-style: none; cursor: pointer; }
 .setting-section summary::-webkit-details-marker { display: none; }
@@ -291,11 +306,9 @@ input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(22,120,101,
 .modal-actions { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .pairing-modal .eyebrow { margin-top: 16px; }
 .pair-form { margin-top: 18px; display: grid; gap: 12px; }
+.pair-wifi-link { min-height: 42px; border: 0; color: var(--brand); background: transparent; font-size: 10px; font-weight: 800; }
+.pair-wifi-link:hover { text-decoration: underline; }
 .inline-error { padding: 10px 12px; border-radius: 11px; color: #852f3a; background: var(--red-soft); font-size: 10px; font-weight: 700; }
-.setup-note { margin-top: 17px; padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-soft); }
-.setup-note strong, .setup-note span { display: block; }
-.setup-note strong { font-size: 11px; }
-.setup-note span { margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .spin { animation: spin .9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -374,6 +387,13 @@ input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(22,120,101,
   .log-row { grid-template-columns: auto minmax(0,1fr); padding: 10px 0; }
   .log-row time { grid-column: 2; }
   .settings-grid { grid-template-columns: 1fr 1fr; }
+  .wifi-card { padding: 17px; }
+  .wifi-heading { align-items: flex-start; }
+  .wifi-status { flex: 0 0 auto; max-width: 145px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wifi-form { grid-template-columns: 1fr; }
+  .wifi-form .wide { grid-column: auto; }
+  .wifi-action { display: grid; }
+  .wifi-action .button { width: 100%; }
   .autotune-row { display: grid; }
   .settings-save { width: 100%; }
   .modal-backdrop { padding: 0; align-items: end; }

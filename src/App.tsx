@@ -66,6 +66,7 @@ export default function App() {
     controller.status.phase === 'connected' &&
     controller.isDeviceOnline
   );
+  const canManageNetwork = Boolean(canControl && controller.session?.user.role === 'owner');
   const criticalCount = controller.selectedDevice?.logs.filter((log) => log.severity === 'critical').length ?? 0;
   const title = NAV_ITEMS.find((item) => item.id === page)?.label ?? 'Tổng quan';
   const connectionLabel = useMemo(() => {
@@ -165,7 +166,7 @@ export default function App() {
               {page === 'overview' && <OverviewPage device={controller.selectedDevice} online={controller.isDeviceOnline} canControl={canControl} onSaveQuick={controller.sendConfig} onOpenPairing={() => setPairingOpen(true)} />}
               {page === 'batch' && <BatchPage config={runtimeConfig} device={controller.selectedDevice} online={controller.isDeviceOnline} canControl={canControl} onSendConfig={controller.sendConfig} onRequestCommand={requestCommand} onNotice={controller.showNotice} />}
               {page === 'alerts' && <AlertsPage device={controller.selectedDevice} />}
-              {page === 'settings' && <SettingsPage config={runtimeConfig} status={controller.status} user={controller.session?.user ?? null} device={controller.selectedDevice} online={controller.isDeviceOnline} canControl={canControl} onSendConfig={controller.sendConfig} onRequestCommand={requestCommand} onNotice={controller.showNotice} />}
+              {page === 'settings' && <SettingsPage config={runtimeConfig} status={controller.status} user={controller.session?.user ?? null} device={controller.selectedDevice} online={controller.isDeviceOnline} canControl={canControl} canManageNetwork={canManageNetwork} onSendConfig={controller.sendConfig} onSendWifi={controller.sendWifiCredentials} onRequestCommand={requestCommand} onNotice={controller.showNotice} />}
             </section>
           </>
         )}
@@ -173,7 +174,7 @@ export default function App() {
 
       {controller.notice && <div className="toast" role="status"><Wifi size={18} /><span>{controller.notice}</span><button type="button" aria-label="Đóng thông báo" onClick={() => controller.showNotice('')}><X size={17} /></button></div>}
 
-      {runtimeConfig && <PairDeviceDialog open={pairingOpen} config={runtimeConfig} onClose={() => setPairingOpen(false)} onPaired={() => controller.reconnect()} />}
+      {runtimeConfig && <PairDeviceDialog open={pairingOpen} config={runtimeConfig} onClose={() => setPairingOpen(false)} onPaired={() => controller.reconnect()} onOpenWifi={() => { setPairingOpen(false); setPage('settings'); }} />}
       <ConfirmDialog open={Boolean(confirm)} title={confirm?.title || ''} message={confirm?.message || ''} confirmLabel={confirm?.danger ? 'Xác nhận dừng' : 'Xác nhận'} danger={confirm?.danger} onCancel={() => setConfirm(null)} onConfirm={() => void runCommand()} />
     </div>
   );

@@ -9,9 +9,10 @@ interface PairDeviceDialogProps {
   config: RuntimeConfig;
   onClose: () => void;
   onPaired: () => void;
+  onOpenWifi: () => void;
 }
 
-export function PairDeviceDialog({ open, config, onClose, onPaired }: PairDeviceDialogProps) {
+export function PairDeviceDialog({ open, config, onClose, onPaired, onOpenWifi }: PairDeviceDialogProps) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -30,6 +31,11 @@ export function PairDeviceDialog({ open, config, onClose, onPaired }: PairDevice
     }
     setBusy(true);
     setError('');
+    if (!isRuntimeConfigured(config)) {
+      setBusy(false);
+      setError('Dịch vụ liên kết qua Internet chưa sẵn sàng. Nếu đây là thiết bị mới, hãy cấu hình Wi-Fi cho ESP32 trước.');
+      return;
+    }
     try {
       await pairDevice(config, code.trim().toUpperCase(), name.trim());
       onPaired();
@@ -49,28 +55,22 @@ export function PairDeviceDialog({ open, config, onClose, onPaired }: PairDevice
         <span className="eyebrow">THÊM THIẾT BỊ</span>
         <h2 id="pair-title">Liên kết MAYAP của bạn</h2>
         <p>Mã ghép nối dùng một lần phải được cấp từ màn hình hoặc nhãn bảo mật trên thiết bị.</p>
-        {isRuntimeConfigured(config) ? (
-          <form onSubmit={submit} className="pair-form">
-            <label>
-              <span>Mã ghép nối</span>
-              <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="VD: AP-7K4M-92QX" autoComplete="one-time-code" />
-            </label>
-            <label>
-              <span>Tên hiển thị</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Máy ấp khu A" maxLength={40} />
-            </label>
-            {error && <div className="inline-error" role="alert">{error}</div>}
-            <button className="button primary full" type="submit" disabled={busy}>
-              {busy && <LoaderCircle className="spin" size={17} />}
-              {busy ? 'Đang xác minh…' : 'Xác minh và liên kết'}
-            </button>
-          </form>
-        ) : (
-          <div className="setup-note">
-            <strong>Chưa cấu hình dịch vụ ghép nối</strong>
-            <span>Quản trị viên cần hoàn tất `config.json` và backend trước khi thêm thiết bị thật.</span>
-          </div>
-        )}
+        <form onSubmit={submit} className="pair-form">
+          <label>
+            <span>Mã ghép nối</span>
+            <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="VD: AP-7K4M-92QX" autoComplete="one-time-code" />
+          </label>
+          <label>
+            <span>Tên hiển thị</span>
+            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Máy ấp khu A" maxLength={40} />
+          </label>
+          {error && <div className="inline-error" role="alert">{error}</div>}
+          <button className="button primary full" type="submit" disabled={busy}>
+            {busy && <LoaderCircle className="spin" size={17} />}
+            {busy ? 'Đang xác minh…' : 'Xác minh và liên kết'}
+          </button>
+          <button className="pair-wifi-link" type="button" onClick={onOpenWifi}>Thiết bị chưa vào mạng? Cấu hình Wi-Fi</button>
+        </form>
       </section>
     </div>
   );
