@@ -1,0 +1,10 @@
+{
+  "environment": "production",
+  "apiBaseUrl": "https://api.mayap.vn",
+  "sessionEndpoint": "/v1/mqtt/session",
+  "pairingEndpoint": "/v1/devices/pair",
+  "loginUrl": "https://account.mayap.vn/dang-nhap",
+  "supportUrl": "https://mayap.vn/ho-tro",
+  "topicRoot": "mayap/v1",
+  "staleAfterMs": 90000
+}
