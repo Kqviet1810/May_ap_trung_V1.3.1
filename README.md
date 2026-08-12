@@ -37,6 +37,14 @@ npm run build
 npm run preview
 ```
 
+Để cập nhật GitHub Pages khi nguồn đang đặt là `main / (root)`:
+
+```bash
+npm run build:pages
+```
+
+Lệnh này build ứng dụng rồi đồng bộ artifact production vào thư mục gốc. `src/index.html` là HTML nguồn dành cho Vite; `index.html` ở thư mục gốc là HTML đã biên dịch dành cho GitHub Pages. Commit cả hai nhóm thay đổi trước khi push.
+
 ## Cấu hình môi trường
 
 Sao chép `config.production.example.json` thành `public/config.json`, sau đó thay các domain mẫu bằng dịch vụ thật. File này là cấu hình công khai; tuyệt đối không đặt password, API secret, JWT dài hạn hoặc tài khoản broker vào đây.
@@ -81,7 +89,7 @@ Backend/broker phải áp dụng cùng quy tắc. Việc khóa nút trên fronte
 
 ## Triển khai
 
-Triển khai thư mục `dist/` lên hosting HTTPS có custom domain và chính sách cache phù hợp. Không dùng GitHub Pages làm hạ tầng thương mại chính cho dịch vụ SaaS/điều khiển thiết bị; repository này chỉ chứa mã nguồn và CI.
+Triển khai thư mục `dist/` lên hosting HTTPS có custom domain và chính sách cache phù hợp. Bản GitHub Pages hiện tại được cung cấp để kiểm tra frontend và tích hợp ban đầu; không nên dùng Pages làm hạ tầng thương mại chính cho dịch vụ SaaS/điều khiển thiết bị.
 
 - `index.html`, `config.json`: `Cache-Control: no-cache`
 - asset có hash trong `/assets/`: `Cache-Control: public, max-age=31536000, immutable`

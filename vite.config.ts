@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  root: 'src',
   base: './',
+  publicDir: '../public',
   plugins: [
     react(),
     VitePWA({
@@ -47,6 +49,8 @@ export default defineConfig({
     })
   ],
   build: {
+    outDir: '../dist',
+    emptyOutDir: true,
     target: 'es2022',
     sourcemap: false,
     reportCompressedSize: true
