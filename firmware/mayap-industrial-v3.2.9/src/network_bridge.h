@@ -101,11 +101,23 @@ class NetworkBridge {
     const uint32_t now = millis();
     if (now - lastSnapshotCopyAt_ < RUNTIME_TO_HMI_MS) return;
     lastSnapshotCopyAt_ = now;
+    bool configChanged = false;
+    bool firstSnapshot = false;
     portENTER_CRITICAL(&snapshotMux_);
+    firstSnapshot = !snapshotReady_;
+    configChanged = firstSnapshot || memcmp(&snapshotConfig_, &config, sizeof(MachineConfig)) != 0;
     snapshotConfig_ = config;
     snapshotRuntime_ = runtime;
     snapshotReady_ = true;
     portEXIT_CRITICAL(&snapshotMux_);
+
+    if (configChanged || firstSnapshot) {
+      portENTER_CRITICAL(&queueMux_);
+      if (!firstSnapshot && configRevision_ < UINT32_MAX) ++configRevision_;
+      configPublishPending_ = true;
+      snapshotPublishPending_ = true;
+      portEXIT_CRITICAL(&queueMux_);
+    }
   }
 
   void onCommandResult(uint32_t localId, bool ok, const char *message) {
@@ -138,6 +150,9 @@ class NetworkBridge {
     eventSnapshot_ = snapshot;
     eventSnapshotPending_ = true;
     portEXIT_CRITICAL(&snapshotMux_);
+    portENTER_CRITICAL(&queueMux_);
+    snapshotPublishPending_ = true;
+    portEXIT_CRITICAL(&queueMux_);
   }
 
  private:
@@ -387,6 +402,8 @@ class NetworkBridge {
         handleConfig(doc);
       } else if (!strcmp(message.topic, topicWifiSet_)) {
         handleWifi(doc);
+      } else if (!strcmp(message.topic, topicSession_)) {
+        handleSession(doc);
       }
     }
   }
@@ -447,6 +464,13 @@ class NetworkBridge {
              sizeof(recentRequestIds_[recentRequestIdNext_]), "%s", requestId);
     recentRequestIdNext_ = (recentRequestIdNext_ + 1U) % REQUEST_ID_CACHE_SIZE;
     if (recentRequestIdCount_ < REQUEST_ID_CACHE_SIZE) ++recentRequestIdCount_;
+  }
+
+  void handleSession(JsonDocument &doc) {
+    if (!(doc["sync"] | false)) return;
+    portENTER_CRITICAL(&queueMux_);
+    syncPublishPending_ = true;
+    portEXIT_CRITICAL(&queueMux_);
   }
 
   void handleCommand(JsonDocument &doc) {
@@ -798,10 +822,30 @@ class NetworkBridge {
   void publishPeriodic(uint32_t now) {
     if (!mqtt_.connected()) return;
     portENTER_CRITICAL(&queueMux_);
+    const bool syncNow = syncPublishPending_;
     const bool publishConfigNow = configPublishPending_;
+    const bool publishSnapshotNow = snapshotPublishPending_;
+    syncPublishPending_ = false;
     configPublishPending_ = false;
+    snapshotPublishPending_ = false;
     portEXIT_CRITICAL(&queueMux_);
-    if (publishConfigNow) publishConfig();
+
+    if (syncNow) {
+      publishPresence(true, "sync");
+      publishConfig();
+      publishSnapshot();
+      lastSnapshotPublishedAt_ = now;
+      lastConfigPublishedAt_ = now;
+      return;
+    }
+    if (publishConfigNow) {
+      publishConfig();
+      lastConfigPublishedAt_ = now;
+    }
+    if (publishSnapshotNow) {
+      publishSnapshot();
+      lastSnapshotPublishedAt_ = now;
+    }
     if (now - lastSnapshotPublishedAt_ >= NETWORK_PUBLISH_INTERVAL_MS) {
       lastSnapshotPublishedAt_ = now;
       publishSnapshot();
@@ -908,6 +952,8 @@ class NetworkBridge {
   uint32_t snapshotRevision_ = 0U;
   volatile uint32_t configRevision_ = 1U;
   bool configPublishPending_ = false;
+  bool snapshotPublishPending_ = false;
+  bool syncPublishPending_ = false;
   uint32_t lastPublishedEventSequence_ = 0U;
   uint32_t credentialGeneration_ = 0U;
   uint8_t activeCredentialSlot_ = 0xFFU;

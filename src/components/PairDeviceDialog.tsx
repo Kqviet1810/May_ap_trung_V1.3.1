@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { Cpu, LoaderCircle, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Cloud, Cpu, Eye, EyeOff, LoaderCircle, X } from 'lucide-react';
 import type { RuntimeConfig } from '../types';
-import { pairDevice } from '../lib/api';
-import { isRuntimeConfigured } from '../lib/config';
+import { loadDirectMqttProfile, saveDirectMqttProfile } from '../lib/directMqttProfile';
 
 interface PairDeviceDialogProps {
   open: boolean;
@@ -13,35 +12,41 @@ interface PairDeviceDialogProps {
 }
 
 export function PairDeviceDialog({ open, config, onClose, onPaired, onOpenWifi }: PairDeviceDialogProps) {
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
+  const [brokerUrl, setBrokerUrl] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [deviceId, setDeviceId] = useState('MAP-A1B2C3D4E5F6');
+  const [deviceName, setDeviceName] = useState('Máy ấp 01');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const saved = loadDirectMqttProfile();
+    if (!saved) return;
+    setBrokerUrl(saved.brokerUrl);
+    setUsername(saved.username);
+    setPassword(saved.password);
+    setDeviceId(saved.deviceId);
+    setDeviceName(saved.deviceName);
+  }, [open]);
+
   if (!open) return null;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!/^[A-Z0-9-]{6,24}$/i.test(code.trim())) {
-      setError('Mã ghép nối phải có từ 6 đến 24 ký tự.');
-      return;
-    }
-    if (!name.trim()) {
-      setError('Hãy nhập tên hiển thị cho thiết bị.');
-      return;
-    }
     setBusy(true);
     setError('');
-    if (!isRuntimeConfigured(config)) {
-      setBusy(false);
-      setError('Dịch vụ liên kết qua Internet chưa sẵn sàng. Nếu đây là thiết bị mới, hãy cấu hình Wi-Fi cho ESP32 trước.');
-      return;
-    }
     try {
-      await pairDevice(config, code.trim().toUpperCase(), name.trim());
+      saveDirectMqttProfile({ brokerUrl, username, password, deviceId, deviceName });
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        await Notification.requestPermission().catch(() => 'default');
+      }
       onPaired();
       onClose();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không thể liên kết thiết bị.');
+      setError(reason instanceof Error ? reason.message : 'Không thể lưu kết nối MQTT.');
     } finally {
       setBusy(false);
     }
@@ -51,25 +56,41 @@ export function PairDeviceDialog({ open, config, onClose, onPaired, onOpenWifi }
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="modal pairing-modal" role="dialog" aria-modal="true" aria-labelledby="pair-title">
         <button className="icon-button modal-close" type="button" aria-label="Đóng hộp thoại" onClick={onClose}><X size={20} /></button>
-        <div className="modal-icon"><Cpu size={23} /></div>
-        <span className="eyebrow">THÊM THIẾT BỊ</span>
-        <h2 id="pair-title">Liên kết MAYAP của bạn</h2>
-        <p>Mã ghép nối dùng một lần phải được cấp từ màn hình hoặc nhãn bảo mật trên thiết bị.</p>
-        <form onSubmit={submit} className="pair-form">
+        <div className="modal-icon"><Cloud size={23} /></div>
+        <span className="eyebrow">KẾT NỐI MQTT TRỰC TIẾP</span>
+        <h2 id="pair-title">Kết nối máy ấp với HiveMQ</h2>
+        <p>Nhập một lần thông tin WebSocket của HiveMQ. Website sẽ trao đổi MQTT trực tiếp với ESP32, không cần backend riêng.</p>
+        <form onSubmit={submit} className="pair-form" autoComplete="off">
           <label>
-            <span>Mã ghép nối</span>
-            <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="VD: AP-7K4M-92QX" autoComplete="one-time-code" />
+            <span>HiveMQ WebSocket URL</span>
+            <input value={brokerUrl} onChange={(event) => setBrokerUrl(event.target.value)} placeholder="wss://xxxx.hivemq.cloud:8884/mqtt" inputMode="url" autoCapitalize="none" spellCheck={false} required />
+          </label>
+          <label>
+            <span>MQTT username của website</span>
+            <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="mayap-web" autoCapitalize="none" spellCheck={false} required />
+          </label>
+          <label>
+            <span>MQTT password</span>
+            <div className="wifi-input">
+              <input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? 'text' : 'password'} autoComplete="new-password" required />
+              <button type="button" aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+            </div>
+          </label>
+          <label>
+            <span>Device ID</span>
+            <input value={deviceId} onChange={(event) => setDeviceId(event.target.value.toUpperCase())} placeholder="MAP-A1B2C3D4E5F6" pattern="MAP-[A-Fa-f0-9]{12}" maxLength={16} autoCapitalize="characters" required />
           </label>
           <label>
             <span>Tên hiển thị</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Máy ấp khu A" maxLength={40} />
+            <input value={deviceName} onChange={(event) => setDeviceName(event.target.value)} placeholder="Máy ấp 01" maxLength={40} required />
           </label>
+          <div className="local-provisioning-note"><Cpu size={18} /><span>Topic dùng chung: <b>{config.topicRoot}/{deviceId || 'MAP-...'}</b>. Credential được lưu cục bộ trong trình duyệt này, không ghi vào GitHub.</span></div>
           {error && <div className="inline-error" role="alert">{error}</div>}
           <button className="button primary full" type="submit" disabled={busy}>
             {busy && <LoaderCircle className="spin" size={17} />}
-            {busy ? 'Đang xác minh…' : 'Xác minh và liên kết'}
+            {busy ? 'Đang lưu…' : 'Lưu và kết nối'}
           </button>
-          <button className="pair-wifi-link" type="button" onClick={onOpenWifi}>Thiết bị chưa vào mạng? Cấu hình Wi-Fi</button>
+          <button className="pair-wifi-link" type="button" onClick={onOpenWifi}>ESP32 chưa vào Wi-Fi? Mở hướng dẫn cấu hình</button>
         </form>
       </section>
     </div>

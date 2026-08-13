@@ -2,6 +2,7 @@ import type { RuntimeConfig } from '../types';
 
 const DEFAULT_CONFIG: RuntimeConfig = {
   environment: 'unconfigured',
+  connectionMode: 'backend',
   apiBaseUrl: '',
   sessionEndpoint: '/v1/mqtt/session',
   pairingEndpoint: '/v1/devices/pair',
@@ -27,6 +28,7 @@ export async function loadRuntimeConfig(): Promise<RuntimeConfig> {
     const merged = { ...DEFAULT_CONFIG, ...value };
     return {
       ...merged,
+      connectionMode: merged.connectionMode === 'direct-mqtt' ? 'direct-mqtt' : 'backend',
       apiBaseUrl: String(merged.apiBaseUrl || '').replace(/\/$/, ''),
       topicRoot: String(merged.topicRoot || DEFAULT_CONFIG.topicRoot).replace(/^\/+|\/+$/g, ''),
       staleAfterMs: Math.max(15_000, Number(merged.staleAfterMs) || DEFAULT_CONFIG.staleAfterMs)
@@ -39,12 +41,14 @@ export async function loadRuntimeConfig(): Promise<RuntimeConfig> {
 
 export function isRuntimeConfigured(config: RuntimeConfig): boolean {
   if (config.environment === 'unconfigured') return false;
+  if (config.connectionMode === 'direct-mqtt') return true;
   if (/^https:\/\//i.test(config.apiBaseUrl)) return true;
   return config.environment === 'staging' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(config.apiBaseUrl);
 }
 
 export function isSecureProductionConfig(config: RuntimeConfig): boolean {
-  return config.environment === 'production' && /^https:\/\//i.test(config.apiBaseUrl);
+  return config.connectionMode === 'backend' &&
+    config.environment === 'production' && /^https:\/\//i.test(config.apiBaseUrl);
 }
 
 export function apiUrl(config: RuntimeConfig, path: string): string {

@@ -9,6 +9,7 @@ import type {
   WifiCredentials
 } from '../types';
 import { ApiError, requestMqttSession } from './api';
+import { directMqttClientId, loadDirectMqttProfile } from './directMqttProfile';
 import {
   createCommandPayload,
   createRequestId,
@@ -49,11 +50,15 @@ export class MayapMqttGateway {
     window.clearTimeout(this.retryTimer);
     window.clearInterval(this.heartbeatTimer);
     this.sessionRequest?.abort();
-    const requestController = new AbortController();
-    this.sessionRequest = requestController;
+    this.sessionRequest = null;
     this.client?.end(true);
     this.client = null;
     this.session = null;
+
+    if (this.config.connectionMode === 'direct-mqtt') {
+      await this.startDirect(runId);
+      return;
+    }
 
     if (!isRuntimeConfigured(this.config)) {
       this.handlers.onStatus({
@@ -63,6 +68,8 @@ export class MayapMqttGateway {
       return;
     }
 
+    const requestController = new AbortController();
+    this.sessionRequest = requestController;
     this.handlers.onStatus({ phase: 'authorizing', message: 'Đang xác thực phiên điều khiển…' });
     const timeout = window.setTimeout(() => requestController.abort(), SESSION_TIMEOUT_MS);
     try {
@@ -136,6 +143,38 @@ export class MayapMqttGateway {
     this.session = null;
   }
 
+  private async startDirect(runId: number): Promise<void> {
+    const profile = loadDirectMqttProfile();
+    if (!profile) {
+      this.handlers.onStatus({
+        phase: 'unconfigured',
+        message: 'Chưa nhập kết nối HiveMQ cho máy ấp'
+      });
+      return;
+    }
+
+    const session: MqttSession = {
+      user: { id: 'pilot-owner', name: 'Chủ máy', role: 'owner' },
+      devices: [{
+        id: profile.deviceId,
+        name: profile.deviceName,
+        model: 'MAYAP ESP32-S3'
+      }],
+      mqtt: {
+        url: profile.brokerUrl,
+        clientId: directMqttClientId(profile.deviceId),
+        username: profile.username,
+        password: profile.password,
+        expiresAt: '9999-12-31T23:59:59.000Z'
+      }
+    };
+
+    this.session = session;
+    this.handlers.onSession(session);
+    this.handlers.onStatus({ phase: 'connecting', message: 'Đang kết nối trực tiếp HiveMQ…' });
+    await this.connect(session, runId);
+  }
+
   private async connect(session: MqttSession, runId: number): Promise<void> {
     this.handlers.onStatus({ phase: 'connecting', message: 'Đang thiết lập kênh điều khiển bảo mật…' });
     const mqtt = (await import('mqtt')).default;
@@ -156,7 +195,7 @@ export class MayapMqttGateway {
     this.client.on('connect', () => {
       if (runId !== this.runId) return;
       this.retryAttempt = 0;
-      this.handlers.onStatus({ phase: 'connected', message: 'Kênh điều khiển đã sẵn sàng' });
+      this.handlers.onStatus({ phase: 'connected', message: 'Đã kết nối ESP32 qua MQTT' });
       this.subscribeAuthorizedDevices();
       if (this.selectedDeviceId) this.publishHeartbeat(this.selectedDeviceId, true, true);
       window.clearInterval(this.heartbeatTimer);
@@ -167,7 +206,7 @@ export class MayapMqttGateway {
 
     this.client.on('reconnect', () => {
       if (runId !== this.runId) return;
-      this.handlers.onStatus({ phase: 'connecting', message: 'Đang kết nối lại kênh điều khiển…' });
+      this.handlers.onStatus({ phase: 'connecting', message: 'Đang kết nối lại MQTT…' });
     });
     this.client.on('offline', () => {
       if (runId !== this.runId) return;
@@ -175,7 +214,7 @@ export class MayapMqttGateway {
     });
     this.client.on('close', () => {
       if (!this.stopped && runId === this.runId) {
-        this.handlers.onStatus({ phase: 'connecting', message: 'Kênh điều khiển tạm gián đoạn' });
+        this.handlers.onStatus({ phase: 'connecting', message: 'Kênh MQTT tạm gián đoạn' });
       }
     });
     this.client.on('error', (error) => {
@@ -245,7 +284,7 @@ export class MayapMqttGateway {
 
   private assertAuthorizedDevice(deviceId: string): void {
     if (!this.session?.devices.some((device) => device.id === deviceId)) {
-      throw new Error('Tài khoản không có quyền điều khiển thiết bị này');
+      throw new Error('Thiết bị này không nằm trong cấu hình trình duyệt');
     }
   }
 

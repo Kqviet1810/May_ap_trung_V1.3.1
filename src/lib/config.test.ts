@@ -4,6 +4,7 @@ import { isRuntimeConfigured, isSecureProductionConfig } from './config';
 
 const base: RuntimeConfig = {
   environment: 'unconfigured',
+  connectionMode: 'backend',
   apiBaseUrl: '',
   sessionEndpoint: '/v1/mqtt/session',
   pairingEndpoint: '/v1/devices/pair',
@@ -14,15 +15,20 @@ const base: RuntimeConfig = {
 };
 
 describe('cấu hình môi trường', () => {
-  it('chỉ công nhận production khi API dùng HTTPS', () => {
+  it('chỉ công nhận production backend khi API dùng HTTPS', () => {
     expect(isRuntimeConfigured({ ...base, environment: 'production', apiBaseUrl: 'https://api.mayap.vn' })).toBe(true);
     expect(isSecureProductionConfig({ ...base, environment: 'production', apiBaseUrl: 'https://api.mayap.vn' })).toBe(true);
     expect(isRuntimeConfigured({ ...base, environment: 'production', apiBaseUrl: 'http://api.mayap.vn' })).toBe(false);
   });
 
-  it('chỉ cho phép HTTP staging trên loopback để test tại máy', () => {
+  it('chỉ cho phép HTTP staging backend trên loopback', () => {
     expect(isRuntimeConfigured({ ...base, environment: 'staging', apiBaseUrl: 'http://localhost:8787' })).toBe(true);
     expect(isRuntimeConfigured({ ...base, environment: 'staging', apiBaseUrl: 'http://127.0.0.1:8787' })).toBe(true);
     expect(isRuntimeConfigured({ ...base, environment: 'staging', apiBaseUrl: 'http://192.168.1.10:8787' })).toBe(false);
+  });
+
+  it('cho phép pilot MQTT trực tiếp mà không cần API backend', () => {
+    expect(isRuntimeConfigured({ ...base, environment: 'staging', connectionMode: 'direct-mqtt' })).toBe(true);
+    expect(isSecureProductionConfig({ ...base, environment: 'staging', connectionMode: 'direct-mqtt' })).toBe(false);
   });
 });
