@@ -1,5 +1,6 @@
 {
-  "environment": "unconfigured",
+  "environment": "staging",
+  "connectionMode": "direct-mqtt",
   "apiBaseUrl": "",
   "sessionEndpoint": "/v1/mqtt/session",
   "pairingEndpoint": "/v1/devices/pair",

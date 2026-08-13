@@ -114,9 +114,9 @@ export default function App() {
         </nav>
         <div className="sidebar-card">
           <ShieldCheck size={20} />
-          <strong>Kết nối bảo mật</strong>
-          <p>Chỉ nhận thiết bị được backend cấp quyền.</p>
-          <span><i className={controller.status.phase === 'connected' ? 'ok' : ''} />{controller.status.phase === 'connected' ? 'MQTT đã xác thực' : 'Đang chờ hệ thống'}</span>
+          <strong>MQTT trực tiếp</strong>
+          <p>Website và ESP32 đồng bộ thời gian thực qua broker bảo mật.</p>
+          <span><i className={controller.status.phase === 'connected' ? 'ok' : ''} />{controller.status.phase === 'connected' ? 'MQTT đã kết nối' : 'Đang chờ kết nối'}</span>
         </div>
         <div className="sidebar-footer">
           <span className={`connection-dot ${controller.isDeviceOnline ? 'online' : ''}`} />
@@ -131,20 +131,23 @@ export default function App() {
           <div className="page-title"><span>TRUNG TÂM VẬN HÀNH</span><h1>{title}</h1></div>
           <div className="topbar-actions">
             {controller.session?.devices.length ? (
-              <label className="device-select">
-                <Gauge size={17} />
-                <select aria-label="Chọn thiết bị" value={controller.selectedId} onChange={(event) => controller.selectDevice(event.target.value)}>
-                  {controller.session.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}
-                </select>
-                <ChevronDown size={16} />
-              </label>
+              <>
+                <label className="device-select">
+                  <Gauge size={17} />
+                  <select aria-label="Chọn thiết bị" value={controller.selectedId} onChange={(event) => controller.selectDevice(event.target.value)}>
+                    {controller.session.devices.map((device) => <option key={device.id} value={device.id}>{device.name}</option>)}
+                  </select>
+                  <ChevronDown size={16} />
+                </label>
+                <button className="icon-button" type="button" aria-label="Cấu hình kết nối MQTT" title="Cấu hình MQTT" onClick={() => setPairingOpen(true)}><Wifi size={18} /></button>
+              </>
             ) : (
-              <button className="button secondary compact" type="button" onClick={() => setPairingOpen(true)}><Plus size={17} /><span>Thêm thiết bị</span></button>
+              <button className="button secondary compact" type="button" onClick={() => setPairingOpen(true)}><Plus size={17} /><span>Kết nối máy</span></button>
             )}
             <button className="notification-button" type="button" aria-label={criticalCount ? `${criticalCount} cảnh báo nghiêm trọng` : 'Không có cảnh báo nghiêm trọng'} onClick={() => setPage('alerts')}>
               <Bell size={19} />{criticalCount > 0 && <b>{criticalCount}</b>}
             </button>
-            <div className="user-chip" title={controller.session?.user.name || 'Chưa đăng nhập'}>{initials(controller.session?.user.name)}</div>
+            <div className="user-chip" title={controller.session?.user.name || 'Chưa kết nối'}>{initials(controller.session?.user.name)}</div>
           </div>
         </header>
 
@@ -155,8 +158,8 @@ export default function App() {
             {controller.status.phase === 'unconfigured' && (
               <div className="system-banner warning">
                 <CircleAlert size={20} />
-                <div><strong>Chưa hoàn tất cấu hình production</strong><span>Giao diện đang ở chế độ an toàn: không có dữ liệu giả và không thể gửi lệnh cho đến khi backend xác thực được cấu hình.</span></div>
-                <button type="button" onClick={() => setPage('settings')}>Xem kiểm tra hệ thống</button>
+                <div><strong>Chưa kết nối HiveMQ</strong><span>Nhập WebSocket URL, tài khoản MQTT và Device ID để website kết nối trực tiếp với ESP32.</span></div>
+                <button type="button" onClick={() => setPairingOpen(true)}>Kết nối ngay</button>
               </div>
             )}
             {controller.status.phase === 'unauthorized' && (

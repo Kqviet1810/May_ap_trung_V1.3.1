@@ -16,6 +16,7 @@ const EMPTY_STATUS: GatewayStatus = { phase: 'authorizing', message: 'Đang kh�
 
 export function useMayapController(runtimeConfig: RuntimeConfig | null) {
   const gatewayRef = useRef<MayapMqttGateway | null>(null);
+  const lastFaultByDevice = useRef<Record<string, number>>({});
   const [session, setSession] = useState<MqttSession | null>(null);
   const [status, setStatus] = useState<GatewayStatus>(EMPTY_STATUS);
   const [devices, setDevices] = useState<Record<string, DeviceRuntimeState>>({});
@@ -54,15 +55,28 @@ export function useMayapController(runtimeConfig: RuntimeConfig | null) {
         presence: payload,
         presenceAt: Date.now()
       })),
-      onSnapshot: (deviceId, payload) => updateDevice(setDevices, deviceId, (device) => ({
-        ...device,
-        snapshot: payload,
-        snapshotAt: Date.now(),
-        telemetry: [
-          ...device.telemetry,
-          { at: Date.now(), temperature: Number(payload.runtime.temperature), humidity: Number(payload.runtime.humidity) }
-        ].slice(-180)
-      })),
+      onSnapshot: (deviceId, payload) => {
+        const faultCode = Math.max(0, Number(payload.runtime.primaryFaultCode || 0));
+        const previousFault = lastFaultByDevice.current[deviceId] || 0;
+        if (faultCode && faultCode !== previousFault) {
+          browserAlert(
+            `MAYAP · Lỗi E${faultCode}`,
+            `Thiết bị ${deviceId} đang báo lỗi. Mở website để kiểm tra trạng thái.`,
+            `fault-${deviceId}-${faultCode}`
+          );
+          setNotice(`Thiết bị báo lỗi E${faultCode}. Hãy kiểm tra ngay.`);
+        }
+        lastFaultByDevice.current[deviceId] = faultCode;
+        updateDevice(setDevices, deviceId, (device) => ({
+          ...device,
+          snapshot: payload,
+          snapshotAt: Date.now(),
+          telemetry: [
+            ...device.telemetry,
+            { at: Date.now(), temperature: Number(payload.runtime.temperature), humidity: Number(payload.runtime.humidity) }
+          ].slice(-180)
+        }));
+      },
       onConfig: (deviceId, payload) => updateDevice(setDevices, deviceId, (device) => ({
         ...device,
         config: payload,
@@ -72,10 +86,20 @@ export function useMayapController(runtimeConfig: RuntimeConfig | null) {
         updateDevice(setDevices, deviceId, (device) => ({ ...device }));
         setNotice(ackMessage(payload));
       },
-      onLog: (deviceId, payload) => updateDevice(setDevices, deviceId, (device) => ({
-        ...device,
-        logs: [payload as DeviceLog, ...device.logs.filter((item) => item.id !== (payload as DeviceLog).id)].slice(0, 200)
-      }))
+      onLog: (deviceId, payload) => {
+        const log = payload as DeviceLog;
+        updateDevice(setDevices, deviceId, (device) => ({
+          ...device,
+          logs: [log, ...device.logs.filter((item) => item.id !== log.id)].slice(0, 200)
+        }));
+        if (log.severity !== 'info') {
+          const faultTag = typeof log.code === 'number' && log.code >= 1000
+            ? `fault-${deviceId}-${log.code - 1000}`
+            : `event-${deviceId}-${log.id}`;
+          browserAlert(`MAYAP · ${log.title}`, log.detail, faultTag);
+          setNotice(`${log.title}: ${log.detail}`);
+        }
+      }
     });
     gatewayRef.current = gateway;
     void gateway.start();
@@ -178,6 +202,16 @@ function updateDevice(
   setter((current) => current[deviceId]
     ? { ...current, [deviceId]: update(current[deviceId]) }
     : current);
+}
+
+function browserAlert(title: string, body: string, tag: string): void {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try {
+    new Notification(title, { body, tag, renotify: true });
+    if ('vibrate' in navigator) navigator.vibrate?.([180, 100, 180]);
+  } catch {
+    // Notification is an enhancement only; the dashboard still shows the fault.
+  }
 }
 
 function ackMessage(ack: AckMessage): string {

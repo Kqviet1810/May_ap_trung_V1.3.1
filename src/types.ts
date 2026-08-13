@@ -11,6 +11,7 @@ export type ConnectionPhase =
 
 export interface RuntimeConfig {
   environment: 'production' | 'staging' | 'unconfigured';
+  connectionMode: 'backend' | 'direct-mqtt';
   apiBaseUrl: string;
   sessionEndpoint: string;
   pairingEndpoint: string;
@@ -99,6 +100,9 @@ export interface RuntimeSnapshot {
   autoTuneState: number;
   autoTuneProgress: number;
   resumeConfirmationRequired?: boolean;
+  sensorOnline?: boolean;
+  alarmMask?: number;
+  primaryFaultCode?: number;
 }
 
 export interface SnapshotMessage {
