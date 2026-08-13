@@ -28,7 +28,7 @@ jobs:
 
   firmware:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,3 +37,9 @@ jobs:
       - run: pip install platformio==6.1.18
       - run: cp examples/connectivity-test/esp32/include/secrets.example.h examples/connectivity-test/esp32/include/secrets.h
       - run: pio run --project-dir examples/connectivity-test/esp32
+      - name: Verify imported control core is unchanged
+        run: echo "24bb885ee317d34b9477f66e8b249b8ea7fd93632f4cf67e9bfb67df5b607308  firmware/mayap-industrial-v3.2.9/src/machine_control.h" | sha256sum --check --strict
+      - name: Build integrated industrial firmware
+        run: |
+          cp firmware/mayap-industrial-v3.2.9/include/network_secrets.example.h firmware/mayap-industrial-v3.2.9/include/network_secrets.h
+          pio run --project-dir firmware/mayap-industrial-v3.2.9

@@ -85,6 +85,7 @@ export function SettingsPage({ config, status, user, device, online, canControl,
             <span className={`wifi-status ${online ? 'online' : ''}`}><Wifi size={16} />{online ? device?.presence?.ssid || 'Đang trực tuyến' : 'Thiết bị ngoại tuyến'}</span>
           </div>
           <p className="wifi-description">Đổi mạng cho thiết bị đang trực tuyến. Mật khẩu chỉ được gửi một lần qua kênh bảo mật và không lưu trên trình duyệt.</p>
+          <div className="local-provisioning-note"><Router size={18} /><span><strong>Cài đặt lần đầu hoặc khi thiết bị mất mạng:</strong> kết nối điện thoại vào Wi-Fi <b>MAYAP-xxxx</b>, sau đó mở <b>192.168.4.1</b>. Giữ núm xoay lúc cấp nguồn để buộc mở chế độ này.</span></div>
           <form className="wifi-form" onSubmit={submitWifi} autoComplete="off">
             <label className="wide">
               <span>Tên Wi-Fi (SSID)</span>

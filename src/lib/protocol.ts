@@ -15,7 +15,7 @@ export const CONFIG_KEYS: ReadonlyArray<keyof MachineConfig> = [
   'humidityOffset', 'pidCycleSec', 'humidityAlarmDelaySec', 'turnIntervalMin',
   'turnMaxRunSec', 'powerRestoreDelaySec', 'sensorTimeoutSec', 'maxHeaterPower',
   'totalIncubationDays', 'circulationFanEnabled', 'turningEnabled',
-  'autoResumeAfterPower', 'allowHeatWithoutBatch', 'alarmEnabled', 'controlMode',
+  'allowHeatWithoutBatch', 'alarmEnabled', 'controlMode',
   'nextDirection'
 ];
 

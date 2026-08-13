@@ -17,7 +17,8 @@ Telemetry trong dashboard đến từ ESP32 qua broker; lệnh/cấu hình từ 
 - `broker/acl`: tách quyền tài khoản web và tài khoản ESP32 theo từng topic.
 - `api/server.mjs`: login cookie, `/v1/mqtt/session`, pairing và lưu kế hoạch mẻ trong RAM.
 - `frontend-config.local.json`: cấu hình frontend chạy local.
-- `esp32/`: firmware PlatformIO nhận lệnh, đổi Wi-Fi có rollback, gửi presence/snapshot/config/ack/log.
+- `esp32/`: firmware mô phỏng giao thức dành cho test nhanh không có bo điều khiển đầy đủ.
+- `../../firmware/mayap-industrial-v3.2.9/`: firmware chốt cho bo thật, ghép nguyên lõi điều khiển/HMI công nghiệp.
 
 ## 1. Khởi động broker và API
 
@@ -58,19 +59,19 @@ Mở `http://localhost:8787/dev-login`, nhập `DEV_LOGIN_PASSWORD` trong `.env`
 
 `public/config.json` local không được commit lên bản Pages. Sau khi test, khôi phục file về `environment: "unconfigured"` hoặc cấu hình HTTPS/WSS production.
 
-## 3. Nạp firmware ESP32
+## 3. Nạp firmware ESP32 công nghiệp
 
-Yêu cầu PlatformIO. Trong `esp32/`:
+Yêu cầu PlatformIO. Trong `../../firmware/mayap-industrial-v3.2.9/`:
 
 ```bash
-cp include/secrets.example.h include/secrets.h
+cp include/network_secrets.example.h include/network_secrets.h
 ```
 
-Sửa `include/secrets.h`:
+Sửa `include/network_secrets.h`:
 
-- Wi-Fi thật của ESP32.
-- `MQTT_HOST`: IP LAN của máy chạy Docker, ví dụ `192.168.1.20`; không dùng `localhost`.
-- `MQTT_PASSWORD`: giống `DEVICE_MQTT_PASSWORD` trong `.env`.
+- `NETWORK_MQTT_HOST`: IP LAN của máy chạy Docker, ví dụ `192.168.1.20`; không dùng `localhost`.
+- `NETWORK_MQTT_PORT`: `1883` trong mạng test này.
+- `NETWORK_MQTT_PASSWORD`: giống `DEVICE_MQTT_PASSWORD` trong `.env`.
 - Device ID phải giữ `MAP-A1B2C3D4E5F6` khi dùng ACL mẫu.
 
 Nạp và mở Serial Monitor:
@@ -80,7 +81,7 @@ pio run --target upload
 pio device monitor
 ```
 
-Khi Serial hiện `MQTT đã kết nối và subscribe đầy đủ`, dashboard sẽ nhận:
+Lần đầu, kết nối điện thoại vào `MAYAP-xxxx` và mở `192.168.4.1` để nhập Wi-Fi. Khi Serial hiện `[NET] MQTT OK`, dashboard sẽ nhận:
 
 - presence online;
 - cấu hình hiện hành;
@@ -111,8 +112,7 @@ Code mẫu là nền móng tích hợp, nhưng các điểm sau phải được 
 - Không trả password MQTT tĩnh. Backend production phải cấp token 5–15 phút và broker kiểm tra ACL động theo user/device.
 - Dùng HTTPS cho API, WSS cho trình duyệt và MQTTS/TLS cho ESP32; cài CA thật, không dùng `setInsecure()`.
 - Lưu session, pairing, batch plan và audit trong database; thêm CSRF protection và rate limit dùng Redis/gateway.
-- Bật Secure Boot + Flash Encryption/NVS Encryption trước khi lưu thông tin Wi-Fi trên thiết bị thương mại; firmware mẫu đã không lưu mật khẩu ở browser/log và chỉ ghi mạng mới sau khi kết nối thành công.
-- Firmware phải lưu sequence/config vào NVS an toàn, thay telemetry test bằng driver cảm biến thật và bổ sung watchdog/fail-safe phần cứng.
+- Bật Secure Boot + Flash/NVS Encryption trong quy trình sản xuất; firmware không lưu mật khẩu ở browser/log và chỉ ghi mạng mới sau khi kết nối thành công. Không dùng chung khóa của bản test.
 - Broker production không mở cổng plaintext ra Internet; MQTT `1883` trong mẫu chỉ dành cho LAN kiểm thử.
 
 Tham chiếu giao thức đầy đủ: [`../../docs/MQTT_PROTOCOL.md`](../../docs/MQTT_PROTOCOL.md).

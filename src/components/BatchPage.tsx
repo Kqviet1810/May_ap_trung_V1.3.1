@@ -25,7 +25,8 @@ export function BatchPage({ config, device, online, canControl, onSendConfig, on
       ...current,
       totalDays: machineConfig.totalIncubationDays,
       targetTemp: machineConfig.targetTemp,
-      autoResumeAfterPower: machineConfig.autoResumeAfterPower
+      // Firmware thuong mai luon yeu cau xac nhan sau POWERON/BROWNOUT.
+      autoResumeAfterPower: false
     }));
   }, [machineConfig]);
 
@@ -42,8 +43,7 @@ export function BatchPage({ config, device, online, canControl, onSendConfig, on
       await onSendConfig({
         ...machineConfig,
         targetTemp: plan.targetTemp,
-        totalIncubationDays: plan.totalDays,
-        autoResumeAfterPower: plan.autoResumeAfterPower
+        totalIncubationDays: plan.totalDays
       });
       onNotice('Kế hoạch mẻ đã lưu. Đang chờ ESP32 xác nhận cấu hình…');
     } catch (error) {
@@ -66,10 +66,10 @@ export function BatchPage({ config, device, online, canControl, onSendConfig, on
           <label><span>Tổng thời gian</span><div className="input-unit"><input type="number" min="1" max="40" value={plan.totalDays} onChange={(event) => update('totalDays', Number(event.target.value))} disabled={!canControl} /><b>ngày</b></div></label>
           <label><span>Nhiệt độ mục tiêu</span><div className="input-unit"><input type="number" min="30" max="40" step="0.1" value={plan.targetTemp} onChange={(event) => update('targetTemp', Number(event.target.value))} disabled={!canControl} /><b>°C</b></div></label>
           <label><span>Độ ẩm mục tiêu</span><div className="input-unit"><input type="number" min="20" max="95" value={plan.targetHumidity} onChange={(event) => update('targetHumidity', Number(event.target.value))} disabled={!canControl} /><b>%RH</b></div></label>
-          <label className="toggle-field wide">
-            <div><span>Khôi phục an toàn sau mất điện</span><small>ESP32 vẫn yêu cầu xác nhận nếu trạng thái không rõ ràng.</small></div>
-            <input type="checkbox" checked={plan.autoResumeAfterPower} onChange={(event) => update('autoResumeAfterPower', event.target.checked)} disabled={!canControl} />
-          </label>
+          <div className="toggle-field wide fixed-safety-policy">
+            <div><span>Khôi phục an toàn sau mất điện</span><small>Chính sách cố định: mất điện hoặc sụt áp luôn yêu cầu người vận hành xác nhận trên HMI hoặc website.</small></div>
+            <ShieldCheck size={22} aria-hidden="true" />
+          </div>
           <div className="batch-actions wide">
             <button className="button secondary" type="submit" disabled={!canControl || !machineConfig || busy}><Save size={17} />{busy ? 'Đang lưu…' : 'Lưu kế hoạch'}</button>
             <button
@@ -121,6 +121,6 @@ function initialPlan(): BatchPlan {
     totalDays: 21,
     targetTemp: 37.5,
     targetHumidity: 58,
-    autoResumeAfterPower: true
+    autoResumeAfterPower: false
   };
 }

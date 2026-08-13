@@ -28,7 +28,7 @@ Frontend chỉ là một phần của sản phẩm. Không mở bán/cho điều
 - [ ] Firmware signed update/rollback và inventory phiên bản.
 - [ ] Quy trình hỗ trợ khi thiết bị offline hoặc cấu hình thất bại.
 
-## Frontend trong repository này
+## Website và firmware trong repository này
 
 - [x] Không có mock telemetry hoặc public broker.
 - [x] Không lưu MQTT credential trong config/source.
@@ -39,3 +39,10 @@ Frontend chỉ là một phần của sản phẩm. Không mở bán/cho điều
 - [x] Validate cấu hình phía client và yêu cầu backend validate lại.
 - [x] PWA/offline shell, trạng thái trống và thông báo giới hạn rõ ràng.
 - [x] TypeScript build, unit test giao thức và CI.
+- [x] Đã ghép firmware/HMI công nghiệp v3.2.9; checksum lõi `machine_control.h` được khóa trong CI.
+- [x] Network task tách khỏi control/supervisor, không có quyền ghi output.
+- [x] Provisioning Wi-Fi tại chỗ và đổi Wi-Fi từ web đều lưu sau khi kết nối thành công, có rollback.
+- [x] MQTT callback chỉ đưa dữ liệu vào queue; lệnh đi qua HMI queue/MachineController.
+- [x] Cấu hình chỉ ACK `applied` sau EEPROM A/B readback.
+- [x] Snapshot, presence/LWT, config reported và ACK đã khớp giao thức website.
+- [x] Có PlatformIO build, CI firmware và ma trận kiểm thử đầu-cuối.

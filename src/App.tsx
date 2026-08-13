@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   ChevronDown,
@@ -46,12 +46,19 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pairingOpen, setPairingOpen] = useState(false);
   const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
+  const pageScroll = useRef<Record<AppPage, number>>({ overview: 0, batch: 0, alerts: 0, settings: 0 });
   const controller = useMayapController(runtimeConfig);
 
   useEffect(() => { void loadRuntimeConfig().then(setRuntimeConfig); }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     setSidebarOpen(false);
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: pageScroll.current[page], left: 0, behavior: 'auto' });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      pageScroll.current[page] = window.scrollY;
+    };
   }, [page]);
   useEffect(() => {
     if (!sidebarOpen) return;

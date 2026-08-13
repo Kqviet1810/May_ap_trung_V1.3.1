@@ -2,7 +2,7 @@
 
 Trung tâm vận hành máy ấp trứng MAYAP dành cho môi trường production. Ứng dụng theo dõi telemetry thật, quản lý mẻ ấp, nhận cảnh báo, thay đổi cấu hình và gửi lệnh có thời hạn tới ESP32 qua MQTT over WebSocket.
 
-> Trạng thái bàn giao: frontend production-ready. Ứng dụng cố ý **không có dữ liệu mô phỏng** và **không nhúng tài khoản MQTT**. Các nút điều khiển chỉ mở khi backend xác thực, broker và ESP32 thực sự online.
+> Trạng thái bàn giao: website, giao thức và firmware công nghiệp tích hợp đã sẵn sàng cho test đầu-cuối trên thiết bị thật. Ứng dụng cố ý **không có dữ liệu mô phỏng** và **không nhúng tài khoản MQTT**. Các nút điều khiển chỉ mở khi backend xác thực, broker và ESP32 thực sự online.
 
 ## Điểm khác với bản demo
 
@@ -77,7 +77,7 @@ flowchart LR
 
 Frontend tĩnh không thể tự bảo vệ secret. Backend và broker trong sơ đồ là thành phần bắt buộc trước khi bán sản phẩm thật. Xem hợp đồng tích hợp tại [docs/BACKEND_CONTRACT.md](docs/BACKEND_CONTRACT.md), giao thức MQTT tại [docs/MQTT_PROTOCOL.md](docs/MQTT_PROTOCOL.md), và checklist phát hành tại [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md).
 
-Để test truyền/nhận thật trước khi có hạ tầng production, dùng bộ backend + Mosquitto + firmware ESP32 trong [examples/connectivity-test](examples/connectivity-test/README.md).
+Firmware chốt dùng để nạp bo nằm tại [firmware/mayap-industrial-v3.2.9](firmware/mayap-industrial-v3.2.9/README.md). Nó tích hợp nguyên lõi điều khiển/HMI v3.2.9 với Wi-Fi provisioning, MQTT TLS, anti-replay, cấu hình EEPROM có đọc lại và đổi Wi-Fi có rollback. Để test truyền/nhận thật trước khi có hạ tầng production, dùng backend + Mosquitto trong [examples/connectivity-test](examples/connectivity-test/README.md) và làm theo [kịch bản test đầu-cuối](docs/END_TO_END_TEST.md).
 
 ## Phân quyền
 
@@ -100,7 +100,7 @@ Triển khai thư mục `dist/` lên hosting HTTPS có custom domain và chính 
 
 ## Phạm vi hiện tại
 
-Frontend đã hoàn thiện theo hướng thương mại, nhưng toàn hệ thống chỉ sẵn sàng bán sau khi backend xác thực, broker ACL, firmware chống replay, lưu audit, cảnh báo nền và quy trình thử nghiệm phần cứng trong checklist đều đạt. Không nên quảng cáo đây là hệ thống an toàn sinh học hoặc điều khiển công nghiệp được chứng nhận nếu chưa có kiểm định tương ứng.
+Software trong repository đã đủ để chạy một vòng test thật từ website → broker → ESP32 → lõi điều khiển/HMI → ACK/snapshot. Việc mở bán vẫn cần điền credential/hạ tầng của đơn vị triển khai và ký biên bản đạt checklist phần cứng, bảo mật, soak test và pháp lý; repository không tự thay thế các bước kiểm định sản phẩm.
 
 ## Bảo mật
 
